@@ -392,6 +392,13 @@ class MainWindow(QMainWindow):
 
         # INGAT: simpan worker di self.worker, bukan variabel lokal! (STORED TO self)
         inputs = self.input_panel.get_inputs()
+
+        # Konversi QDate → datetime.date agar kompatibel dengan filter.py
+        if inputs["start_date"] is not None:
+            inputs["start_date"] = inputs["start_date"].toPyDate()
+        if inputs["end_date"] is not None:
+            inputs["end_date"] = inputs["end_date"].toPyDate()
+
         self.worker = worker_module.ScraperWorker(**inputs)
 
         self.worker.sinyal_progress.connect(self.update_progress)
@@ -468,17 +475,16 @@ class MainWindow(QMainWindow):
 
     def export_csv(self) -> None:
         """Panggil exporter.export_csv() dengan self.data_hasil."""
-        # TODO Richard: panggil exporter.export_csv(self.data_hasil, "hasil_scraping") (DONE)
-        # Tampilkan dialog sukses/error
-
-        exporter.export_csv(self.data_hasil, "hasil_scraping")
-        QMessageBox.information(self, "Success", "Data berhasil diexport ke CSV.")
-        pass
+        try:
+            path = exporter.export_csv(self.data_hasil, "hasil_scraping")
+            QMessageBox.information(self, "Sukses", f"Data berhasil diexport ke CSV:\n{path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Gagal", str(e))
 
     def export_excel(self) -> None:
         """Panggil exporter.export_excel() dengan self.data_hasil."""
-        # TODO Richard: panggil exporter.export_excel(self.data_hasil, "hasil_scraping") (DONE)
-
-        exporter.export_excel(self.data_hasil, "hasil_scraping")
-        QMessageBox.information(self, "Success", "Data berhasil diexport ke Excel.")
-        pass
+        try:
+            path = exporter.export_excel(self.data_hasil, "hasil_scraping")
+            QMessageBox.information(self, "Sukses", f"Data berhasil diexport ke Excel:\n{path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Gagal", str(e))
