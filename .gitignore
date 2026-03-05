@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Output dan logs — tidak perlu di-commit, dibuat otomatis saat runtime
+output/
+logs/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS-specific
+.DS_Store       # Mac
+Thumbs.db       # Windows
+
+# Dev tools (jangan ikut dikumpulkan ke dosen)
+requirements-dev.txt

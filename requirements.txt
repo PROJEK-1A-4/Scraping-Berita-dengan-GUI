@@ -1,0 +1,9 @@
+# requirements.txt — runtime dependencies
+# Install: pip install -r requirements.txt  (Windows)
+#          pip3 install -r requirements.txt (Mac/Linux)
+
+selenium
+PyQt5>=5.15.0
+pandas
+openpyxl
+webdriver-manager
