@@ -42,13 +42,41 @@ def parse_tanggal(tanggal_str: str) -> datetime.date | None:
     Returns:
         datetime.date jika format dikenali, None jika tidak dikenali
     """
-    # TODO Darva: implementasikan parsing multi-format
-    # Hint:
-    #   - Coba datetime.strptime() untuk format standar
-    #   - Untuk format Indonesia, lowercase dan replace nama bulan
-    #     dengan nomornya, lalu parse ulang
-    #   - Bungkus setiap percobaan dengan try-except ValueError
-    #   - Return None hanya jika semua format gagal
+    if not tanggal_str or tanggal_str == config.FIELD_KOSONG:
+        return None
+
+    s = tanggal_str.strip()
+
+    # Format 1: ISO 8601 — "2025-03-04"
+    try:
+        return datetime.datetime.strptime(s, "%Y-%m-%d").date()
+    except ValueError:
+        pass
+
+    # Format 2: DD/MM/YYYY — "04/03/2025"
+    try:
+        return datetime.datetime.strptime(s, "%d/%m/%Y").date()
+    except ValueError:
+        pass
+
+    # Format 3: "04 Mar 2025" (singkatan bahasa Inggris — strptime %b)
+    try:
+        return datetime.datetime.strptime(s, "%d %b %Y").date()
+    except ValueError:
+        pass
+
+    # Format 4: "4 Maret 2025" (nama bulan Indonesia — replace dulu)
+    s_lower = s.lower()
+    for nama, nomor in BULAN_INDONESIA.items():
+        if nama in s_lower:
+            s_lower = s_lower.replace(nama, str(nomor))
+            break
+    try:
+        return datetime.datetime.strptime(s_lower, "%d %m %Y").date()
+    except ValueError:
+        pass
+
+    # Semua format gagal
     return None
 
 
@@ -73,15 +101,12 @@ def filter_by_date(articles: list[dict],
             config.FILTER_INCLUDE_UNKNOWN_DATE == True  → masuk hasil
             config.FILTER_INCLUDE_UNKNOWN_DATE == False → dibuang
     """
-    # TODO Darva: implementasikan filter
-    # Hint:
-    #   hasil = []
-    #   for artikel in articles:
-    #       tgl = parse_tanggal(artikel["tanggal"])
-    #       if tgl is None:
-    #           if config.FILTER_INCLUDE_UNKNOWN_DATE:
-    #               hasil.append(artikel)
-    #       elif start_date <= tgl <= end_date:
-    #           hasil.append(artikel)
-    #   return hasil
-    return articles
+    hasil = []
+    for artikel in articles:
+        tgl = parse_tanggal(artikel["tanggal"])
+        if tgl is None:
+            if config.FILTER_INCLUDE_UNKNOWN_DATE:
+                hasil.append(artikel)
+        elif start_date <= tgl <= end_date:
+            hasil.append(artikel)
+    return hasil
