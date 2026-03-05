@@ -9,7 +9,7 @@ PAGE_LOAD_WAIT = 10       # timeout tunggu halaman load
 # ─── Scraping ─────────────────────────────────────────────────
 DEFAULT_DELAY  = 1.5      # jeda antar request
 DEFAULT_LIMIT  = 20       # jumlah artikel default
-MAX_ISI_CHARS  = 500      # Jumlah isi karakter 
+MAX_ISI_CHARS  = 2000     # Jumlah isi karakter (cukup untuk 3-5 paragraf berita) 
 FIELD_KOSONG   = "-"      # nilai default untuk field yang tidak ditemukan
 
 # ─── Validasi artikel — dipakai is_artikel_valid() di scraper.py ──

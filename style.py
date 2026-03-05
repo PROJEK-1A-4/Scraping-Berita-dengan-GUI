@@ -23,169 +23,259 @@
 
 
 # Aulia: MAIN_STYLESHEET — QSS styling untuk seluruh aplikasi
+# Dark theme sesuai gui-mockup.html
+# Palette:
+#   bg:       #0F1117   surface:  #181C27   surface2: #1E2333
+#   border:   #2A3147   accent:   #4F8EF7   accent2:  #00D4AA
+#   danger:   #F75A5A   text:     #E8EAF0   muted:    #6B7699
+
 MAIN_STYLESHEET = """
-/* ═══════════════════════════════════════════════════════════
-   Global — Background & Font
-   ═══════════════════════════════════════════════════════════ */
+/* ═══ Global ═════════════════════════════════════════════════════════ */
 QMainWindow, QWidget {
-    background-color: #f5f7fa;
+    background-color: #0F1117;
     font-family: "Segoe UI", Arial, sans-serif;
     font-size: 13px;
-    color: #2c3e50;
+    color: #E8EAF0;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   QLabel — Teks status & judul
-   ═══════════════════════════════════════════════════════════ */
+/* ═══ QLabel ══════════════════════════════════════════════════════════ */
 QLabel {
-    font-size: 13px;
-    color: #34495e;
-    padding: 2px;
+    font-size: 12px;
+    color: #6B7699;
+    padding: 1px;
+    background: transparent;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   QLineEdit — URL input field
-   ═══════════════════════════════════════════════════════════ */
+/* ═══ Input Panel background ═════════════════════════════════════════ */
+InputPanel {
+    background-color: #181C27;
+    border: 1px solid #2A3147;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+/* ═══ QLineEdit ════════════════════════════════════════════════════════ */
 QLineEdit {
-    background-color: #ffffff;
-    border: 1px solid #bdc3c7;
-    border-radius: 4px;
-    padding: 6px 10px;
-    font-size: 13px;
-    color: #2c3e50;
+    background-color: #1E2333;
+    border: 1px solid #2A3147;
+    border-radius: 5px;
+    padding: 7px 12px;
+    font-size: 12px;
+    color: #00D4AA;
+    font-family: "Courier New", monospace;
 }
 QLineEdit:focus {
-    border: 2px solid #3498db;
+    border: 1px solid #4F8EF7;
+    color: #E8EAF0;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   QSpinBox & QDateEdit — Input number dan tanggal
-   ═══════════════════════════════════════════════════════════ */
+/* ═══ QSpinBox & QDateEdit ═════════════════════════════════════════════ */
 QSpinBox, QDateEdit {
-    background-color: #ffffff;
-    border: 1px solid #bdc3c7;
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 13px;
-    color: #2c3e50;
+    background-color: #1E2333;
+    border: 1px solid #2A3147;
+    border-radius: 5px;
+    padding: 6px 8px;
+    font-size: 12px;
+    color: #E8EAF0;
+    font-family: "Courier New", monospace;
+    min-width: 110px;
 }
 QSpinBox:focus, QDateEdit:focus {
-    border: 2px solid #3498db;
+    border: 1px solid #4F8EF7;
+}
+QSpinBox::up-button, QSpinBox::down-button,
+QDateEdit::up-button, QDateEdit::down-button {
+    background-color: #2A3147;
+    border: none;
+    width: 16px;
+}
+QSpinBox::up-button:hover, QSpinBox::down-button:hover,
+QDateEdit::up-button:hover, QDateEdit::down-button:hover {
+    background-color: #4F8EF7;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   QCheckBox — Filter tanggal toggle
-   ═══════════════════════════════════════════════════════════ */
+/* ═══ QCheckBox ═════════════════════════════════════════════════════════ */
 QCheckBox {
-    font-size: 13px;
-    color: #2c3e50;
-    spacing: 6px;
+    font-size: 12px;
+    color: #6B7699;
+    spacing: 8px;
+    font-family: "Courier New", monospace;
+}
+QCheckBox:checked {
+    color: #00D4AA;
 }
 QCheckBox::indicator {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid #2A3147;
+    background-color: #1E2333;
+}
+QCheckBox::indicator:checked {
+    background-color: #4F8EF7;
+    border-color: #4F8EF7;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   QPushButton — Tombol Scraping (hijau)
-   ═══════════════════════════════════════════════════════════ */
+/* ═══ QPushButton — Mulai Scraping (biru, default) ═════════════════════ */
 QPushButton {
-    background-color: #27ae60;
+    background-color: #4F8EF7;
     color: #ffffff;
     border: none;
-    border-radius: 5px;
-    padding: 8px 20px;
-    font-size: 13px;
-    font-weight: bold;
-    min-width: 100px;
+    border-radius: 6px;
+    padding: 9px 20px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: "Courier New", monospace;
+    min-width: 120px;
 }
 QPushButton:hover {
-    background-color: #219a52;
+    background-color: #6BA3F9;
 }
 QPushButton:pressed {
-    background-color: #1e8449;
+    background-color: #3A7AE4;
 }
 QPushButton:disabled {
-    background-color: #bdc3c7;
-    color: #7f8c8d;
+    background-color: #1E2333;
+    color: #3A4566;
+    border: 1px solid #2A3147;
 }
 
-/* ── Tombol Stop (merah) ── */
+/* ── Stop (outline merah) ── */
 QPushButton#btn_stop {
-    background-color: #e74c3c;
+    background-color: #1E2333;
+    color: #F75A5A;
+    border: 1px solid #F75A5A;
 }
 QPushButton#btn_stop:hover {
-    background-color: #c0392b;
+    background-color: rgba(247, 90, 90, 0.15);
 }
-QPushButton#btn_stop:pressed {
-    background-color: #a93226;
-}
-
-/* ── Tombol Export CSV (biru) ── */
-QPushButton#btn_export_csv {
-    background-color: #2980b9;
-}
-QPushButton#btn_export_csv:hover {
-    background-color: #2471a3;
+QPushButton#btn_stop:disabled {
+    background-color: #1E2333;
+    color: #3A4566;
+    border: 1px solid #2A3147;
 }
 
-/* ── Tombol Export Excel (biru tua) ── */
-QPushButton#btn_export_xl {
-    background-color: #1a5276;
+/* ── Export CSV & Excel (outline teal) ── */
+QPushButton#btn_export_csv, QPushButton#btn_export_xl {
+    background-color: #1E2333;
+    color: #00D4AA;
+    border: 1px solid #00D4AA;
 }
-QPushButton#btn_export_xl:hover {
-    background-color: #154360;
+QPushButton#btn_export_csv:hover, QPushButton#btn_export_xl:hover {
+    background-color: rgba(0, 212, 170, 0.12);
+}
+QPushButton#btn_export_csv:disabled, QPushButton#btn_export_xl:disabled {
+    background-color: #1E2333;
+    color: #3A4566;
+    border: 1px solid #2A3147;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   QTableWidget — Tabel hasil scraping
-   ═══════════════════════════════════════════════════════════ */
+/* ═══ QTableWidget ═══════════════════════════════════════════════════════ */
 QTableWidget {
-    background-color: #ffffff;
-    alternate-background-color: #eaf2f8;
-    border: 1px solid #d5dbdb;
-    gridline-color: #d5dbdb;
-    selection-background-color: #3498db;
-    selection-color: #ffffff;
+    background-color: #0F1117;
+    alternate-background-color: rgba(30, 35, 51, 0.4);
+    border: 1px solid #2A3147;
+    border-radius: 6px;
+    gridline-color: rgba(42, 49, 71, 0.5);
+    selection-background-color: rgba(79, 142, 247, 0.15);
+    selection-color: #E8EAF0;
     font-size: 12px;
+    color: #E8EAF0;
+}
+QTableWidget::item {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(42, 49, 71, 0.5);
+}
+QTableWidget::item:selected {
+    background-color: rgba(79, 142, 247, 0.12);
+    border-left: 2px solid #4F8EF7;
+    color: #E8EAF0;
+}
+QHeaderView {
+    background-color: #1E2333;
 }
 QHeaderView::section {
-    background-color: #2c3e50;
-    color: #ffffff;
-    font-weight: bold;
-    font-size: 12px;
-    padding: 6px;
+    background-color: #1E2333;
+    color: #6B7699;
+    font-family: "Courier New", monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    padding: 9px 10px;
     border: none;
-    border-right: 1px solid #1a252f;
+    border-bottom: 1px solid #2A3147;
+    border-right: 1px solid #2A3147;
+    text-transform: uppercase;
+}
+QHeaderView::section:last {
+    border-right: none;
+}
+QTableWidget QScrollBar:vertical {
+    background: #181C27;
+    width: 8px;
+    border-radius: 4px;
+}
+QTableWidget QScrollBar::handle:vertical {
+    background: #2A3147;
+    border-radius: 4px;
+    min-height: 20px;
+}
+QTableWidget QScrollBar::handle:vertical:hover {
+    background: #4F8EF7;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   QProgressBar — Bar progress scraping
-   ═══════════════════════════════════════════════════════════ */
+/* ═══ QProgressBar ═════════════════════════════════════════════════════ */
 QProgressBar {
-    background-color: #d5dbdb;
-    border: none;
-    border-radius: 5px;
-    text-align: center;
-    font-size: 12px;
+    background-color: #1E2333;
+    border: 1px solid #2A3147;
+    border-radius: 4px;
+    text-align: right;
+    padding-right: 6px;
+    font-size: 11px;
+    font-family: "Courier New", monospace;
     font-weight: bold;
-    color: #2c3e50;
-    min-height: 22px;
+    color: #6B7699;
+    min-height: 16px;
+    max-height: 16px;
 }
 QProgressBar::chunk {
-    background-color: #27ae60;
-    border-radius: 5px;
+    background-color: qlineargradient(
+        x1:0, y1:0, x2:1, y2:0,
+        stop:0 #4F8EF7, stop:1 #00D4AA
+    );
+    border-radius: 3px;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   QMessageBox — Dialog pesan
-   ═══════════════════════════════════════════════════════════ */
-QMessageBox {
-    background-color: #f5f7fa;
+/* ═══ Bottom bar ════════════════════════════════════════════════════════ */
+QWidget#bottom_bar {
+    background-color: #181C27;
+    border-top: 1px solid #2A3147;
+    border-radius: 0px;
 }
-QMessageBox QLabel {
+QWidget#bottom_bar QLabel {
+    font-family: "Courier New", monospace;
+    font-size: 10px;
+    color: #6B7699;
+    letter-spacing: 1px;
+    background: transparent;
+    padding: 0px;
+}
+
+/* ═══ QMessageBox & QDialog ═══════════════════════════════════════════ */
+QMessageBox, QDialog {
+    background-color: #181C27;
+}
+QMessageBox QLabel, QDialog QLabel {
     font-size: 13px;
-    color: #2c3e50;
+    color: #E8EAF0;
+}
+QTextBrowser {
+    background-color: #1E2333;
+    border: 1px solid #2A3147;
+    border-radius: 4px;
+    color: #E8EAF0;
+    font-size: 13px;
+    padding: 8px;
 }
 """
 

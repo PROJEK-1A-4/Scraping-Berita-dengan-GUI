@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import (
     QHeaderView, QSizePolicy, QDialog, QTextBrowser
 )
 from PyQt5.QtCore import Qt, QDate
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QPixmap
 
 import config
 import worker as worker_module
@@ -236,8 +236,9 @@ class MainWindow(QMainWindow):
     PENTING: Simpan worker di self.worker (BUKAN variabel lokal!)
     """
 
-    KOLOM_TABEL = ["No", "Judul", "Tanggal", "Penulis", "Kategori", "URL", "Gambar", "Isi"]
-    # Kolom "Isi" ditampilkan singkat (150 karakter). Double-click baris untuk lihat isi lengkap.
+    # Urutan kolom sesuai mockup: #, Judul, Tanggal, Penulis, Kategori, Isi (preview), URL
+    # Kolom Gambar dihapus dari tabel — gambar ditampilkan di dialog detail (double-click)
+    KOLOM_TABEL = ["#", "Judul", "Tanggal", "Penulis", "Kategori", "Isi (preview)", "URL"]
 
     def __init__(self):
 
@@ -251,12 +252,22 @@ class MainWindow(QMainWindow):
         self.input_panel    = InputPanel()
         self.tabel          = QTableWidget()
         self.progress_bar   = QProgressBar()
-        self.btn_scrape     = QPushButton("Mulai Scraping")
-        self.btn_stop       = QPushButton("Stop")
-        self.btn_export_csv = QPushButton("Export CSV")
-        self.btn_export_xl  = QPushButton("Export Excel")
-        self.label_status   = QLabel("Siap.")
+        self.btn_scrape     = QPushButton("▶  Mulai Scraping")
+        self.btn_stop       = QPushButton("■  Stop")
+        self.btn_export_csv = QPushButton("↓  Export CSV")
+        self.btn_export_xl  = QPushButton("↓  Export Excel")
+        self.label_status   = QLabel("Menampilkan 0 artikel")
         self.label_jumlah   = QLabel("0 artikel")
+        # Bottom status bar labels
+        self.label_dot      = QLabel("●")
+        self.label_state    = QLabel("SIAP")
+        self.label_delay    = QLabel(f"DELAY: {config.DEFAULT_DELAY}s")
+        self.label_headless = QLabel(f"HEADLESS: {'ON' if config.HEADLESS else 'OFF'}")
+        self.label_logfile  = QLabel(str(config.LOG_FILE))
+        # Set object names for per-button styling
+        self.btn_stop.setObjectName("btn_stop")
+        self.btn_export_csv.setObjectName("btn_export_csv")
+        self.btn_export_xl.setObjectName("btn_export_xl")
 
         self._setup_ui()
         self._connect_signals()
@@ -278,29 +289,15 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
+        main_layout.setSpacing(8)
+        main_layout.setContentsMargins(12, 12, 12, 8)
 
-        # Setup tabel:
-        self.tabel.setColumnCount(len(self.KOLOM_TABEL))
-        self.tabel.setHorizontalHeaderLabels(self.KOLOM_TABEL)
-        self.tabel.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.tabel.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.tabel.setAlternatingRowColors(True)
-
-        # Progress bar:
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(0)
-
-        # ─── Add InputPanel (Kyla's work) ────────────────────────
+        # ─── 1. Input Panel (Kyla) ────────────────────────────────
         main_layout.addWidget(self.input_panel)
 
-        # ─── Add Table ───────────────────────────────────────────
-        main_layout.addWidget(self.tabel)
-
-        # ─── Add Progress Bar ────────────────────────────────────
-        main_layout.addWidget(self.progress_bar)
-
-        # ─── Add Buttons Layout ──────────────────────────────────
+        # ─── 2. Tombol ( sesuai mockup: kiri scrape+stop, kanan export ) ─
         buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(8)
         buttons_layout.addWidget(self.btn_scrape)
         buttons_layout.addWidget(self.btn_stop)
         buttons_layout.addStretch()
@@ -308,18 +305,59 @@ class MainWindow(QMainWindow):
         buttons_layout.addWidget(self.btn_export_xl)
         main_layout.addLayout(buttons_layout)
 
-        # ─── Add Status Bar ──────────────────────────────────────
-        status_layout = QHBoxLayout()
-        status_layout.addWidget(self.label_status)
-        status_layout.addStretch()
-        status_layout.addWidget(self.label_jumlah)
-        main_layout.addLayout(status_layout)
+        # ─── 3. Progress Row ( status kiri, bar tengah, % kanan ) ────────
+        progress_row = QHBoxLayout()
+        progress_row.setSpacing(10)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFormat("%p%")
+        self.progress_bar.setTextVisible(True)
+        progress_row.addWidget(self.label_status)
+        progress_row.addWidget(self.progress_bar, stretch=1)
+        main_layout.addLayout(progress_row)
 
-        # WINDOW SETTING:                                                   (DONE)
+        # ─── 4. Tabel header row ( counter artikel ) ──────────────────────
+        table_header_row = QHBoxLayout()
+        table_header_row.addWidget(self.label_jumlah)
+        table_header_row.addStretch()
+        main_layout.addLayout(table_header_row)
 
-        #   self.setWindowTitle(config.APP_TITLE)
+        # ─── 5. Tabel ─────────────────────────────────────────────────────
+        self.tabel.setColumnCount(len(self.KOLOM_TABEL))
+        self.tabel.setHorizontalHeaderLabels(self.KOLOM_TABEL)
+        self.tabel.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.tabel.setAlternatingRowColors(True)
+        self.tabel.setSelectionBehavior(QTableWidget.SelectRows)
+        self.tabel.verticalHeader().setVisible(False)
+        self.tabel.horizontalHeader().setHighlightSections(False)
+        # Column widths: Judul(1) dan Isi(5) stretch, sisanya ResizeToContents
+        hdr = self.tabel.horizontalHeader()
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # #
+        hdr.setSectionResizeMode(1, QHeaderView.Stretch)            # Judul
+        hdr.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Tanggal
+        hdr.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Penulis
+        hdr.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Kategori
+        hdr.setSectionResizeMode(5, QHeaderView.Stretch)            # Isi
+        hdr.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # URL
+        main_layout.addWidget(self.tabel, stretch=1)
+
+        # ─── 6. Bottom status bar ( sesuai mockup ) ───────────────────────
+        bottom_bar = QWidget()
+        bottom_bar.setObjectName("bottom_bar")
+        bottom_layout = QHBoxLayout(bottom_bar)
+        bottom_layout.setContentsMargins(8, 4, 8, 4)
+        bottom_layout.setSpacing(16)
+        self.label_dot.setObjectName("label_dot_active" if False else "label_dot_idle")
+        bottom_layout.addWidget(self.label_dot)
+        bottom_layout.addWidget(self.label_state)
+        bottom_layout.addWidget(QLabel("|"))
+        bottom_layout.addWidget(self.label_delay)
+        bottom_layout.addWidget(self.label_headless)
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(self.label_logfile)
+        main_layout.addWidget(bottom_bar)
+
         self.setWindowTitle(config.APP_TITLE)
-        #   self.resize(config.WINDOW_W, config.WINDOW_H)
         self.resize(config.WINDOW_W, config.WINDOW_H)
         pass
 
@@ -348,28 +386,27 @@ class MainWindow(QMainWindow):
 
     def _set_state_idle(self) -> None:
         """Set state GUI saat idle (tidak sedang scraping)."""              #(DONE)
-        # TODO Richard: atur enabled/disabled tombol untuk state idle        (DONE)
-
-        # btn_scrape: enabled                                                (DONE)
         self.btn_scrape.setEnabled(True)
-        # btn_stop: disabled                                                 (DONE)
         self.btn_stop.setEnabled(False)
-        # btn_export_*: enabled hanya jika self.data_hasil tidak kosong      (DONE)
         self.btn_export_csv.setEnabled(len(self.data_hasil) > 0)
         self.btn_export_xl.setEnabled(len(self.data_hasil) > 0)
+        # Update bottom status bar
+        self.label_dot.setObjectName("label_dot_idle")
+        self.label_dot.setStyleSheet("color: #6B7699;")
+        self.label_state.setText("SIAP")
+        self.label_state.setStyleSheet("color: #6B7699; font-family: monospace; font-size: 11px;")
         pass
 
     def _set_state_scraping(self) -> None:
         """Set state GUI saat sedang scraping."""                           #(DONE)
-        # TODO Richard: atur enabled/disabled tombol untuk state scraping    (DONE)
-
-        # btn_scrape: disabled                                               (DONE)
         self.btn_scrape.setEnabled(False)
-        # btn_stop: enabled                                                  (DONE)
         self.btn_stop.setEnabled(True)
-        # btn_export_*: disabled                                             (DONE)
         self.btn_export_csv.setEnabled(False)
         self.btn_export_xl.setEnabled(False)
+        # Update bottom status bar
+        self.label_dot.setStyleSheet("color: #00D4AA;")
+        self.label_state.setText("SCRAPING AKTIF")
+        self.label_state.setStyleSheet("color: #00D4AA; font-family: monospace; font-size: 11px; font-weight: bold;")
         pass
 
     def mulai_scraping(self) -> None:
@@ -427,8 +464,8 @@ class MainWindow(QMainWindow):
         Args:
             artikel: dict artikel (format kesepakatan tim)
 
-        Urutan kolom tabel: No, Judul, Tanggal, Penulis, Kategori, URL, Gambar
-        (Isi tidak ditampilkan di tabel, tapi disimpan di self.data_hasil untuk ekspor)
+        Urutan kolom tabel: #, Judul, Tanggal, Penulis, Kategori, Isi (preview), URL
+        (double-click baris untuk lihat detail lengkap termasuk gambar)
         """
         # TODO Richard:                                                      (DONE)
 
@@ -439,21 +476,24 @@ class MainWindow(QMainWindow):
         # self.tabel.insertRow(row)
         self.tabel.insertRow(row)
 
-        # Isi setiap kolom dengan QTableWidgetItem
-        self.tabel.setItem(row, 0, QTableWidgetItem(str(row + 1)))
+        # Urutan kolom: #(0), Judul(1), Tanggal(2), Penulis(3), Kategori(4), Isi(5), URL(6)
+        no_item = QTableWidgetItem(f"{row + 1:02d}")
+        no_item.setTextAlignment(Qt.AlignCenter)
+        self.tabel.setItem(row, 0, no_item)
         self.tabel.setItem(row, 1, QTableWidgetItem(artikel.get("judul", "")))
         self.tabel.setItem(row, 2, QTableWidgetItem(artikel.get("tanggal", "")))
         self.tabel.setItem(row, 3, QTableWidgetItem(artikel.get("penulis", "")))
         self.tabel.setItem(row, 4, QTableWidgetItem(artikel.get("kategori", "")))
-        self.tabel.setItem(row, 5, QTableWidgetItem(artikel.get("url", "")))
-        self.tabel.setItem(row, 6, QTableWidgetItem(artikel.get("gambar_url", "")))
 
-        # Kolom Isi — tampilkan 150 karakter pertama, double-click untuk lihat lengkap
+        # Kolom Isi — preview 150 karakter, double-click untuk lihat lengkap
         isi_raw = artikel.get("isi", "")
         isi_singkat = isi_raw[:150] + ("..." if len(isi_raw) > 150 else "")
-        self.tabel.setItem(row, 7, QTableWidgetItem(isi_singkat))
+        self.tabel.setItem(row, 5, QTableWidgetItem(isi_singkat))
 
-        self.label_jumlah.setText(f"{len(self.data_hasil)} artikel")
+        self.tabel.setItem(row, 6, QTableWidgetItem(artikel.get("url", "")))
+
+        self.label_jumlah.setText(f"Menampilkan {len(self.data_hasil)} artikel")
+        self.label_status.setText(f"Menampilkan {len(self.data_hasil)} artikel")
         pass
 
     def update_progress(self, nilai: int) -> None:
@@ -468,7 +508,7 @@ class MainWindow(QMainWindow):
         # TODO Richard: update label_status, label_jumlah, set state idle    (DONE)
 
         self.label_status.setText("Selesai.")
-        self.label_jumlah.setText(f"{jumlah} artikel")
+        self.label_jumlah.setText(f"Menampilkan {jumlah} artikel")
         self._set_state_idle()
         pass
 
@@ -495,11 +535,18 @@ class MainWindow(QMainWindow):
 
         dialog = QDialog(self)
         dialog.setWindowTitle(artikel.get("judul", "Detail Artikel")[:80])
-        dialog.resize(700, 500)
+        dialog.resize(760, 620)
 
         layout = QVBoxLayout(dialog)
+        layout.setSpacing(8)
 
-        # ─── Info singkat (meta artikel) ────────────────────────
+        # ─── Judul ───────────────────────────────────────────────
+        label_judul = QLabel(f"<h3>{artikel.get('judul', '-')}</h3>")
+        label_judul.setWordWrap(True)
+        label_judul.setTextFormat(Qt.RichText)
+        layout.addWidget(label_judul)
+
+        # ─── Info meta ───────────────────────────────────────────
         info_html = (
             f"<b>Tanggal:</b> {artikel.get('tanggal', '-')} &nbsp;|&nbsp; "
             f"<b>Penulis:</b> {artikel.get('penulis', '-')} &nbsp;|&nbsp; "
@@ -513,7 +560,34 @@ class MainWindow(QMainWindow):
         label_info.setTextFormat(Qt.RichText)
         layout.addWidget(label_info)
 
-        # ─── Isi artikel (teks lengkap) ─────────────────────────
+        # ─── Gambar artikel ──────────────────────────────────────
+        gambar_url = artikel.get("gambar_url", "-")
+        if gambar_url and gambar_url not in ("-", ""):
+            import urllib.request
+            try:
+                req = urllib.request.Request(
+                    gambar_url,
+                    headers={"User-Agent": config.USER_AGENT}
+                )
+                data = urllib.request.urlopen(req, timeout=5).read()
+                pixmap = QPixmap()
+                if pixmap.loadFromData(data) and not pixmap.isNull():
+                    label_img = QLabel()
+                    # Scale gambar agar muat di dialog (max lebar 720px, jaga aspek ratio)
+                    scaled = pixmap.scaledToWidth(
+                        min(720, pixmap.width()),
+                        Qt.SmoothTransformation
+                    )
+                    # Batasi tinggi max 260px
+                    if scaled.height() > 260:
+                        scaled = pixmap.scaledToHeight(260, Qt.SmoothTransformation)
+                    label_img.setPixmap(scaled)
+                    label_img.setAlignment(Qt.AlignCenter)
+                    layout.addWidget(label_img)
+            except Exception:
+                pass  # Gambar gagal dimuat — lewati, tidak crash
+
+        # ─── Isi artikel ─────────────────────────────────────────
         layout.addWidget(QLabel("<b>Isi Artikel:</b>"))
         text_isi = QTextBrowser()
         text_isi.setPlainText(artikel.get("isi", "-"))
