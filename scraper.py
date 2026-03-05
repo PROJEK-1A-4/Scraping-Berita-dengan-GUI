@@ -81,9 +81,16 @@ def _extract_text(driver: webdriver.Chrome, selectors: list[tuple], default: str
     Returns:
         str: teks elemen pertama yang ditemukan, atau default jika tidak ada
     """
-    # TODO Darva: loop melalui selectors, coba find_element, tangkap NoSuchElementException
-    # Jika ketemu, kembalikan .text.strip() — jika semua gagal, kembalikan default
-    pass
+    from selenium.common.exceptions import NoSuchElementException
+
+    for by, value in selectors:
+        try:
+            element = driver.find_element(by, value)
+            return element.text.strip()
+        except NoSuchElementException:
+            continue
+
+    return default
 
 
 def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
@@ -143,21 +150,29 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
         - Gunakan try-except untuk setiap field bonus
         - Delay config.DEFAULT_DELAY detik setelah scraping
     """
-    # TODO Darva: implementasikan ekstraksi artikel
-    # Hint:
-    #   artikel = ARTIKEL_KOSONG.copy()
-    #   artikel["url"] = url
-    #   driver.get(url)
-    #   # Coba berbagai selector generik: h1, article h1, .title, [itemprop="headline"]
-    #   artikel["judul"] = _extract_text(driver, [...selector judul...])
-    #   # field bonus selalu dalam try-except
-    #   try:
-    #       artikel["penulis"] = _extract_text(driver, [...selector penulis...])
-    #   except:
-    #       pass  # sudah "-" dari ARTIKEL_KOSONG
-    #   time.sleep(config.DEFAULT_DELAY)
-    #   return artikel
-    return ARTIKEL_KOSONG.copy()
+    artikel = ARTIKEL_KOSONG.copy()
+    artikel["url"] = url
+
+    driver.get(url)
+
+    artikel["judul"] = _extract_text(driver, [
+        (By.TAG_NAME, "h1"),
+        (By.CSS_SELECTOR, "article h1"),
+    ])
+
+    artikel["tanggal"] = _extract_text(driver, [
+        (By.TAG_NAME, "time"),
+        (By.CSS_SELECTOR, ".date"),
+    ])
+
+    isi = _extract_text(driver, [
+        (By.TAG_NAME, "article"),
+        (By.CSS_SELECTOR, ".content"),
+    ])
+    artikel["isi"] = isi[:config.MAX_ISI_CHARS]
+
+    time.sleep(config.DEFAULT_DELAY)
+    return artikel
 
 
 def is_artikel_valid(artikel: dict) -> bool:
