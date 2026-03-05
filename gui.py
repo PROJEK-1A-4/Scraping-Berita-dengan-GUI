@@ -174,11 +174,9 @@ class InputPanel(QWidget):
         Args:
             state: Qt.Checked atau Qt.Unchecked
         """
-        # TODO Kyla: aktifkan/nonaktifkan date_start dan date_end
-        # aktif = (state == Qt.Checked)
-        # self.date_start.setEnabled(aktif)
-        # self.date_end.setEnabled(aktif)
-        pass
+        aktif = (state == Qt.Checked)
+        self.date_start.setEnabled(aktif)
+        self.date_end.setEnabled(aktif)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -239,27 +237,50 @@ class MainWindow(QMainWindow):
             - label_status + label_jumlah di area bawah
             - input_panel di atas atau sidebar kiri
         """
-        # TODO Richard: implementasikan layout utama
-        # Hint:
-        #   central = QWidget()
-        #   self.setCentralWidget(central)
-        #   main_layout = QVBoxLayout(central)
-        #
-        #   # Setup tabel:
-        #   self.tabel.setColumnCount(len(self.KOLOM_TABEL))
-        #   self.tabel.setHorizontalHeaderLabels(self.KOLOM_TABEL)
-        #   self.tabel.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        #   self.tabel.setEditTriggers(QTableWidget.NoEditTriggers)
-        #   self.tabel.setAlternatingRowColors(True)
-        #
-        #   # Progress bar:
-        #   self.progress_bar.setRange(0, 100)
-        #   self.progress_bar.setValue(0)
-        #
-        #   # Window settings:
-        #   self.setWindowTitle(config.APP_TITLE)
-        #   self.resize(config.WINDOW_W, config.WINDOW_H)
-        pass
+        # Setup central widget
+        central = QWidget()
+        self.setCentralWidget(central)
+        main_layout = QVBoxLayout(central)
+
+        # Setup tabel:
+        self.tabel.setColumnCount(len(self.KOLOM_TABEL))
+        self.tabel.setHorizontalHeaderLabels(self.KOLOM_TABEL)
+        self.tabel.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tabel.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.tabel.setAlternatingRowColors(True)
+
+        # Progress bar:
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+
+        # ─── Add InputPanel (Kyla's work) ────────────────────────
+        main_layout.addWidget(self.input_panel)
+
+        # ─── Add Table ───────────────────────────────────────────
+        main_layout.addWidget(self.tabel)
+
+        # ─── Add Progress Bar ────────────────────────────────────
+        main_layout.addWidget(self.progress_bar)
+
+        # ─── Add Buttons Layout ──────────────────────────────────
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addWidget(self.btn_scrape)
+        buttons_layout.addWidget(self.btn_stop)
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.btn_export_csv)
+        buttons_layout.addWidget(self.btn_export_xl)
+        main_layout.addLayout(buttons_layout)
+
+        # ─── Add Status Bar ──────────────────────────────────────
+        status_layout = QHBoxLayout()
+        status_layout.addWidget(self.label_status)
+        status_layout.addStretch()
+        status_layout.addWidget(self.label_jumlah)
+        main_layout.addLayout(status_layout)
+
+        # Window settings:
+        self.setWindowTitle(config.APP_TITLE)
+        self.resize(config.WINDOW_W, config.WINDOW_H)
 
     def _connect_signals(self) -> None:
         """
