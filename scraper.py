@@ -17,13 +17,13 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+# from selenium.webdriver.support.ui import WebDriverWait      # reserved — untuk explicit wait jika dibutuhkan
+# from selenium.webdriver.support import expected_conditions as EC  # reserved — pasangan WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
 import config
-import logger
+# import logger  # reserved — aktifkan setelah logger.py (Kemal) selesai
 
 
 # ─── Kesepakatan tim: struktur data artikel ───────────────────
@@ -53,17 +53,21 @@ def setup_driver() -> webdriver.Chrome:
     Returns:
         webdriver.Chrome: driver yang siap dipakai
     """
-    # TODO Darva: implementasikan setup driver di sini
-    # Hint:
-    #   options = Options()
-    #   if config.HEADLESS: options.add_argument("--headless")
-    #   options.add_argument(f"user-agent={config.USER_AGENT}")
-    #   options.add_argument("--no-sandbox")
-    #   options.add_argument("--disable-dev-shm-usage")
-    #   service = Service(ChromeDriverManager().install())
-    #   driver = webdriver.Chrome(service=service, options=options)
-    #   driver.set_page_load_timeout(config.PAGE_LOAD_WAIT)
-    raise NotImplementedError("TODO Darva: implementasi setup_driver()")
+    options = Options()
+    options.page_load_strategy = "eager"  # berhenti tunggu saat DOM siap, abaikan resource lambat
+
+    if config.HEADLESS:
+        options.add_argument("--headless")
+
+    options.add_argument(f"user-agent={config.USER_AGENT}")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
+    driver.set_page_load_timeout(config.PAGE_LOAD_WAIT)
+
+    return driver
 
 
 def _extract_text(driver: webdriver.Chrome, selectors: list[tuple], default: str = "-") -> str:
@@ -78,9 +82,16 @@ def _extract_text(driver: webdriver.Chrome, selectors: list[tuple], default: str
     Returns:
         str: teks elemen pertama yang ditemukan, atau default jika tidak ada
     """
-    # TODO Darva: loop melalui selectors, coba find_element, tangkap NoSuchElementException
-    # Jika ketemu, kembalikan .text.strip() — jika semua gagal, kembalikan default
-    pass
+    from selenium.common.exceptions import NoSuchElementException
+
+    for by, value in selectors:
+        try:
+            element = driver.find_element(by, value)
+            return element.text.strip()
+        except NoSuchElementException:
+            continue
+
+    return default
 
 
 def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
@@ -95,13 +106,72 @@ def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
     Returns:
         list[str]: daftar URL artikel (full URL, bukan relative)
     """
-    # TODO Darva: implementasikan pengumpulan link
-    # Hint:
-    #   - Buka url dengan driver.get(url)
-    #   - Cari semua <a> yang mengarah ke artikel (gunakan selector generik)
-    #   - Panggil handle_pagination() untuk lanjut ke halaman berikutnya
-    #   - Hentikan jika len(links) >= limit atau tidak ada halaman berikutnya
-    return []
+    from urllib.parse import urlparse, urljoin
+    from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+
+    links: list[str] = []
+    seen: set[str] = set()
+    base = "{u.scheme}://{u.netloc}".format(u=urlparse(url))
+
+    # Keyword yang menandakan URL bukan artikel
+    NON_ARTIKEL = ("search", "query=", "tag/", "/kirim", "/login",
+                   "/register", "/subscribe", "#", "javascript:")
+
+    try:
+        driver.get(url)
+    except TimeoutException:
+        pass
+
+    while len(links) < limit:
+        # Kumpulkan href sebagai plain string dulu — hindari StaleElementReferenceException
+        raw_hrefs: list[str] = []
+        for anchor in driver.find_elements(By.TAG_NAME, "a"):
+            try:
+                href = anchor.get_attribute("href") or ""
+                if href:
+                    raw_hrefs.append(href)
+            except StaleElementReferenceException:
+                continue
+
+        for href in raw_hrefs:
+            if len(links) >= limit:
+                break
+
+            # Jadikan full URL jika masih relative
+            if href.startswith("/"):
+                href = urljoin(base, href)
+
+            # Filter: hanya http/https
+            if not href.startswith("http"):
+                continue
+
+            # Buang URL yang mengandung keyword non-artikel
+            if any(kw in href for kw in NON_ARTIKEL):
+                continue
+
+            # Buang URL dengan ekstensi non-artikel
+            parsed = urlparse(href)
+            if parsed.path.lower().endswith((".jpg", ".png", ".gif", ".pdf", ".mp4")):
+                continue
+
+            # Hanya ambil URL dengan path minimal 2 level (/kategori/judul-artikel)
+            path_depth = len([p for p in parsed.path.split("/") if p])
+            if path_depth < 2:
+                continue
+
+            if href in seen:
+                continue
+
+            seen.add(href)
+            links.append(href)
+
+        # Lanjut ke halaman berikutnya jika belum mencapai limit
+        if len(links) < limit and handle_pagination(driver):
+            continue
+        else:
+            break
+
+    return links
 
 
 def handle_pagination(driver: webdriver.Chrome) -> bool:
@@ -117,7 +187,67 @@ def handle_pagination(driver: webdriver.Chrome) -> bool:
     Returns:
         bool: True jika berhasil pindah ke halaman berikutnya, False jika tidak ada
     """
-    # TODO Darva: implementasikan deteksi & klik pagination
+    import re
+    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+    from selenium.common.exceptions import (
+        NoSuchElementException, ElementNotInteractableException,
+        ElementClickInterceptedException, StaleElementReferenceException,
+    )
+
+    # ── Strategi 1: <a rel="next"> atau <link rel="next"> ─────────────────
+    for selector in ['a[rel="next"]', 'link[rel="next"]']:
+        try:
+            el = driver.find_element(By.CSS_SELECTOR, selector)
+            next_url = el.get_attribute("href")
+            if next_url:
+                driver.get(next_url)
+                return True
+        except (NoSuchElementException, StaleElementReferenceException):
+            pass
+
+    # ── Strategi 2: Tombol dengan teks "next" / variasi bahasa Indonesia ──
+    NEXT_TEXTS = ["next", "selanjutnya", "berikutnya", "›", "»", ">"]
+    for anchor in driver.find_elements(By.TAG_NAME, "a"):
+        try:
+            text = anchor.text.strip().lower()
+            if text in NEXT_TEXTS:
+                anchor.click()
+                return True
+        except (StaleElementReferenceException,
+                ElementNotInteractableException,
+                ElementClickInterceptedException):
+            continue
+
+    # ── Strategi 3: Konstruksi URL halaman berikutnya dari pola umum ───────
+    current_url = driver.current_url
+    parsed      = urlparse(current_url)
+    qs          = parse_qs(parsed.query, keep_blank_values=True)
+
+    # Pola ?page=N atau ?p=N
+    for param in ("page", "p"):
+        if param in qs:
+            try:
+                current_page    = int(qs[param][0])
+                qs[param]       = [str(current_page + 1)]
+                new_query       = urlencode(qs, doseq=True)
+                next_url        = urlunparse(parsed._replace(query=new_query))
+                driver.get(next_url)
+                return True
+            except (ValueError, Exception):
+                pass
+
+    # Pola /page/N atau /halaman/N
+    for pattern, replacement in [
+        (r"(/page/)(\d+)", lambda m: f"{m.group(1)}{int(m.group(2)) + 1}"),
+        (r"(/halaman/)(\d+)", lambda m: f"{m.group(1)}{int(m.group(2)) + 1}"),
+    ]:
+        new_path, subs = re.subn(pattern, replacement, parsed.path)
+        if subs:
+            next_url = urlunparse(parsed._replace(path=new_path))
+            driver.get(next_url)
+            return True
+
+    # ── Strategi 4: tidak ketemu → sudah halaman terakhir ─────────────────
     return False
 
 
@@ -140,21 +270,64 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
         - Gunakan try-except untuk setiap field bonus
         - Delay config.DEFAULT_DELAY detik setelah scraping
     """
-    # TODO Darva: implementasikan ekstraksi artikel
-    # Hint:
-    #   artikel = ARTIKEL_KOSONG.copy()
-    #   artikel["url"] = url
-    #   driver.get(url)
-    #   # Coba berbagai selector generik: h1, article h1, .title, [itemprop="headline"]
-    #   artikel["judul"] = _extract_text(driver, [...selector judul...])
-    #   # field bonus selalu dalam try-except
-    #   try:
-    #       artikel["penulis"] = _extract_text(driver, [...selector penulis...])
-    #   except:
-    #       pass  # sudah "-" dari ARTIKEL_KOSONG
-    #   time.sleep(config.DEFAULT_DELAY)
-    #   return artikel
-    return ARTIKEL_KOSONG.copy()
+    from selenium.common.exceptions import TimeoutException
+
+    artikel = ARTIKEL_KOSONG.copy()
+    artikel["url"] = url
+
+    try:
+        driver.get(url)
+    except TimeoutException:
+        pass  # DOM kemungkinan sudah siap, lanjutkan scraping
+
+    artikel["judul"] = _extract_text(driver, [
+        (By.TAG_NAME, "h1"),
+        (By.CSS_SELECTOR, "article h1"),
+    ])
+
+    artikel["tanggal"] = _extract_text(driver, [
+        (By.CSS_SELECTOR, ".read__time"),
+        (By.CSS_SELECTOR, ".detail__date"),
+        (By.TAG_NAME, "time"),
+        (By.CSS_SELECTOR, ".date"),
+    ])
+
+    isi = _extract_text(driver, [
+        (By.CSS_SELECTOR, ".read__content"),
+        (By.CSS_SELECTOR, ".detail__body-text"),
+        (By.CSS_SELECTOR, "article"),
+        (By.CSS_SELECTOR, ".content"),
+    ])
+    artikel["isi"] = isi[:config.MAX_ISI_CHARS]
+
+    # ── Field bonus ───────────────────────────────────────────
+    artikel["penulis"] = _extract_text(driver, [
+        (By.CSS_SELECTOR, ".read__author"),
+        (By.CSS_SELECTOR, ".detail__author"),
+        (By.CSS_SELECTOR, ".author"),
+    ])
+
+    artikel["kategori"] = _extract_text(driver, [
+        (By.CSS_SELECTOR, ".breadcrumb__item"),
+        (By.CSS_SELECTOR, ".detail__nav > a"),
+        (By.CSS_SELECTOR, ".category"),
+    ])
+
+    from selenium.common.exceptions import NoSuchElementException
+    for by, value in [
+        (By.CSS_SELECTOR, ".photo__wrap img"),
+        (By.CSS_SELECTOR, ".detail__media img"),
+        (By.TAG_NAME, "img"),
+    ]:
+        try:
+            img_element = driver.find_element(by, value)
+            artikel["gambar_url"] = img_element.get_attribute("src")
+            break
+        except NoSuchElementException:
+            continue
+
+    time.sleep(config.DEFAULT_DELAY)
+    return artikel
 
 
 def is_artikel_valid(artikel: dict) -> bool:
