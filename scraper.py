@@ -161,15 +161,45 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
     ])
 
     artikel["tanggal"] = _extract_text(driver, [
+        (By.CSS_SELECTOR, ".read__time"),
+        (By.CSS_SELECTOR, ".detail__date"),
         (By.TAG_NAME, "time"),
         (By.CSS_SELECTOR, ".date"),
     ])
 
     isi = _extract_text(driver, [
-        (By.TAG_NAME, "article"),
+        (By.CSS_SELECTOR, ".read__content"),
+        (By.CSS_SELECTOR, ".detail__body-text"),
+        (By.CSS_SELECTOR, "article"),
         (By.CSS_SELECTOR, ".content"),
     ])
     artikel["isi"] = isi[:config.MAX_ISI_CHARS]
+
+    # ── Field bonus ───────────────────────────────────────────
+    artikel["penulis"] = _extract_text(driver, [
+        (By.CSS_SELECTOR, ".read__author"),
+        (By.CSS_SELECTOR, ".detail__author"),
+        (By.CSS_SELECTOR, ".author"),
+    ])
+
+    artikel["kategori"] = _extract_text(driver, [
+        (By.CSS_SELECTOR, ".breadcrumb__item"),
+        (By.CSS_SELECTOR, ".detail__nav > a"),
+        (By.CSS_SELECTOR, ".category"),
+    ])
+
+    from selenium.common.exceptions import NoSuchElementException
+    for by, value in [
+        (By.CSS_SELECTOR, ".photo__wrap img"),
+        (By.CSS_SELECTOR, ".detail__media img"),
+        (By.TAG_NAME, "img"),
+    ]:
+        try:
+            img_element = driver.find_element(by, value)
+            artikel["gambar_url"] = img_element.get_attribute("src")
+            break
+        except NoSuchElementException:
+            continue
 
     time.sleep(config.DEFAULT_DELAY)
     return artikel
