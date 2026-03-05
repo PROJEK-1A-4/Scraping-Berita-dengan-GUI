@@ -67,8 +67,12 @@ def _format_tanggal(raw: str) -> str:
         "%Y-%m-%dT%H:%M:%S.%fZ",        # 2026-03-05T20:48:39.000Z
         "%Y-%m-%dT%H:%M:%S.%f%z",       # 2026-03-05T20:48:39.000+07:00
         "%Y-%m-%dT%H:%M:%S",            # 2026-03-05T21:00:42
+        "%Y/%m/%d %H:%M:%S",            # 2026/03/05 19:07:34 (CNN Indonesia)
         "%Y-%m-%d %H:%M:%S",            # 2026-03-05 21:00:42
         "%Y-%m-%d",                      # 2026-03-05
+        "%d %b %Y %I:%M%p",             # 03 Mar 2026 04:01pm (CNA)
+        "%d %b %Y %I:%M %p",            # 03 Mar 2026 04:01 pm
+        "%d %b %Y",                      # 03 Mar 2026
     ]
 
     for fmt in formats:
@@ -307,6 +311,7 @@ class MainWindow(QMainWindow):
 
     # Urutan kolom sesuai mockup: #, Judul, Tanggal, Penulis, Kategori, Isi (preview), URL
     # Kolom Gambar dihapus dari tabel — gambar ditampilkan di dialog detail (double-click)
+    # CATATAN: Berbeda dengan CSV_HEADERS di config.py yang menyertakan kolom Gambar_URL untuk export
     KOLOM_TABEL = ["#", "Judul", "Tanggal", "Penulis", "Kategori", "Isi (preview)", "URL"]
 
     def __init__(self):
@@ -501,7 +506,7 @@ class MainWindow(QMainWindow):
         """Buka dialog Tentang Aplikasi."""
         dialog = QDialog(self)
         dialog.setWindowTitle("Tentang Aplikasi")
-        dialog.setFixedSize(460, 320)
+        dialog.setFixedSize(config.DIALOG_W, config.DIALOG_H)
 
         layout = QVBoxLayout(dialog)
         layout.setSpacing(12)
@@ -560,7 +565,7 @@ class MainWindow(QMainWindow):
         """Buka dialog Tim Pengembang."""
         dialog = QDialog(self)
         dialog.setWindowTitle("Tim Pengembang")
-        dialog.setFixedSize(500, 420)
+        dialog.setFixedSize(config.DIALOG_W + 40, config.DIALOG_H + 100)  # Lebih besar untuk daftar tim
 
         layout = QVBoxLayout(dialog)
         layout.setSpacing(12)
@@ -890,7 +895,7 @@ class MainWindow(QMainWindow):
 
         dialog = QDialog(self)
         dialog.setWindowTitle(artikel.get("judul", "Detail Artikel")[:80])
-        dialog.resize(760, 620)
+        dialog.resize(config.DETAIL_DLG_W, config.DETAIL_DLG_H)
 
         layout = QVBoxLayout(dialog)
         layout.setSpacing(8)

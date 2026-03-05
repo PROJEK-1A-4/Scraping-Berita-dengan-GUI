@@ -176,16 +176,8 @@ def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
     netloc_parts = parsed_input.netloc.split(".")
     base_domain  = ".".join(netloc_parts[-2:])  # e.g. "kompas.com"
 
-    # Keyword yang menandakan URL bukan artikel (path/query pattern)
-    NON_ARTIKEL_KW = (
-        "search", "query=", "/tag/", "/kirim", "/login",
-        "/register", "/subscribe", "#", "javascript:",
-        "/topik", "/topic", "/author/", "/penulis/",
-        "/jadwal-", "/quran", "/ramadan", "/live",
-        "gampad", "doubleclick", "?source=", "?ref=",
-        "/video/", "/foto/", "/galeri/", "/photo/",
-        "/podcast/", "/infografis/",
-    )
+    # Keyword yang menandakan URL bukan artikel (diambil dari config.py)
+    NON_ARTIKEL_KW = config.NON_ARTIKEL_KEYWORDS
 
     try:
         driver.get(url)
@@ -229,10 +221,10 @@ def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
             if parsed_href.path.lower().endswith((".jpg", ".png", ".gif", ".pdf", ".mp4", ".webp")):
                 continue
 
-            # Hanya ambil URL dengan path minimal 3 level (/kategori/sub/judul-artikel)
-            # Depth 2 (/nasional/politik) biasanya halaman kategori, bukan artikel
+            # Hanya ambil URL dengan path minimal N level (dari config.PATH_DEPTH_MIN)
+            # Depth < config.PATH_DEPTH_MIN (/nasional/politik) biasanya halaman kategori
             path_depth = len([p for p in parsed_href.path.split("/") if p])
-            if path_depth < 3:
+            if path_depth < config.PATH_DEPTH_MIN:
                 continue
 
             if href in seen:
@@ -393,22 +385,40 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
     # ── Tanggal ───────────────────────────────────────────────
     # L1: OpenGraph article:published_time / Schema.org datePublished
     tanggal_meta = _extract_meta(
-        driver, ["article:published_time", "datePublished", "date", "pubdate"]
+        driver, ["article:published_time", "datePublished", "publishdate", "createdate", "date", "pubdate"]
     )
     if tanggal_meta != config.FIELD_KOSONG:
         artikel["tanggal"] = tanggal_meta
     else:
-        # L2 + L3: fallback ke elemen HTML
-        artikel["tanggal"] = _extract_text(driver, [
-            (By.CSS_SELECTOR, "time[datetime]"),            # Atribut datetime HTML5
-            (By.TAG_NAME, "time"),                          # Semantic HTML5
-            (By.CSS_SELECTOR, ".detail__date"),             # Detik (L3)
-            (By.CSS_SELECTOR, ".read__time"),               # Kompas (L3)
-            (By.CSS_SELECTOR, ".publish_date"),             # CNN Indonesia (L3)
-            (By.CSS_SELECTOR, "[class*='publish']"),        # Wildcard
-            (By.CSS_SELECTOR, "[class*='date']"),           # Wildcard
-            (By.CSS_SELECTOR, "[class*='time']"),           # Wildcard
-        ])
+        # Coba ambil atribut datetime dari elemen <time> dulu
+        from selenium.common.exceptions import NoSuchElementException
+        tanggal_ditemukan = False
+        for sel in ["time[datetime]", "time"]:
+            try:
+                el = driver.find_element(By.CSS_SELECTOR, sel)
+                dt_attr = el.get_attribute("datetime")
+                if dt_attr and dt_attr.strip():
+                    artikel["tanggal"] = dt_attr.strip()
+                    tanggal_ditemukan = True
+                    break
+                text = el.text.strip()
+                if text:
+                    artikel["tanggal"] = text
+                    tanggal_ditemukan = True
+                    break
+            except NoSuchElementException:
+                continue
+
+        if not tanggal_ditemukan:
+            # L2 + L3: fallback ke elemen HTML teks
+            artikel["tanggal"] = _extract_text(driver, [
+                (By.CSS_SELECTOR, ".detail__date"),             # Detik (L3)
+                (By.CSS_SELECTOR, ".read__time"),               # Kompas (L3)
+                (By.CSS_SELECTOR, ".publish_date"),             # CNN Indonesia (L3)
+                (By.CSS_SELECTOR, "[class*='publish']"),        # Wildcard
+                (By.CSS_SELECTOR, "[class*='date']"),           # Wildcard
+                (By.CSS_SELECTOR, "[class*='time']"),           # Wildcard
+            ])
 
     # ── Isi artikel ───────────────────────────────────────────
     # L1: Schema.org articleBody
