@@ -86,6 +86,9 @@ class InputPanel(QWidget):
         label_limit.setFixedWidth(60)
         self.input_limit.setRange(1, 500)
         self.input_limit.setValue(config.DEFAULT_LIMIT)
+        self.input_limit.setSuffix(" artikel")  # Add suffix untuk clarity
+        self.input_limit.setMinimumHeight(32)   # Match URL input height
+        self.input_limit.setMinimumWidth(120)   # Cukup lebar untuk display
         limit_layout.addWidget(label_limit)
         limit_layout.addWidget(self.input_limit)
         limit_layout.addStretch()  # Push ke kiri
