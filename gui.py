@@ -74,6 +74,8 @@ class InputPanel(QWidget):
         label_url = QLabel("URL:")
         label_url.setFixedWidth(60)
         self.input_url.setPlaceholderText("https://www.cnnindonesia.com")
+        self.input_url.setMinimumHeight(32)
+        self.input_url.setClearButtonEnabled(True)  # Built-in clear button
         url_layout.addWidget(label_url)
         url_layout.addWidget(self.input_url)
         layout.addLayout(url_layout)
