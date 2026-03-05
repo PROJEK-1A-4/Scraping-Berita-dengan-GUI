@@ -103,12 +103,21 @@ class InputPanel(QWidget):
         date_layout = QHBoxLayout()
         label_dari = QLabel("Dari:")
         label_dari.setFixedWidth(60)
+        
         self.date_start.setDate(QDate.currentDate())
         self.date_start.setEnabled(False)
+        self.date_start.setDisplayFormat("dd/MM/yyyy")  # Readable format
+        self.date_start.setCalendarPopup(True)  # Popup calendar saat diklik
+        self.date_start.setMinimumHeight(32)  # Match other widgets
+        self.date_start.setToolTip("Pilih tanggal awal (Double-click atau klik icon kalender)")
 
         label_sampai = QLabel("Sampai:")
         self.date_end.setDate(QDate.currentDate())
         self.date_end.setEnabled(False)
+        self.date_end.setDisplayFormat("dd/MM/yyyy")  # Readable format
+        self.date_end.setCalendarPopup(True)  # Popup calendar saat diklik
+        self.date_end.setMinimumHeight(32)  # Match other widgets
+        self.date_end.setToolTip("Pilih tanggal akhir (Double-click atau klik icon kalender)")
 
         date_layout.addWidget(label_dari)
         date_layout.addWidget(self.date_start)
