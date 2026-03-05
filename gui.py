@@ -167,20 +167,41 @@ class InputPanel(QWidget):
         Returns:
             bool: True jika semua input valid, False jika ada error
         """
-        # TODO Kyla: implementasikan validasi
-        # Hint:
-        #   inputs = self.get_inputs()
-        #   if not inputs["url"]:
-        #       QMessageBox.warning(self, "Input Error", "URL tidak boleh kosong!")
-        #       return False
-        #   if not inputs["url"].startswith(("http://", "https://")):
-        #       QMessageBox.warning(...)
-        #       return False
-        #   if inputs["filter_aktif"] and inputs["end_date"] < inputs["start_date"]:
-        #       QMessageBox.warning(...)
-        #       return False
-        #   return True
-        return False
+        inputs = self.get_inputs()
+        
+        # Validasi 1: URL tidak boleh kosong
+        if not inputs["url"]:
+            QMessageBox.warning(
+                self, 
+                "Input Error", 
+                "URL tidak boleh kosong!\n\nContoh: https://www.cnnindonesia.com"
+            )
+            self.input_url.setFocus()
+            return False
+        
+        # Validasi 2: URL harus diawali http:// atau https://
+        if not inputs["url"].startswith(("http://", "https://")):
+            QMessageBox.warning(
+                self,
+                "Input Error",
+                "URL harus diawali dengan 'http://' atau 'https://'\n\nContoh: https://www.cnnindonesia.com"
+            )
+            self.input_url.setFocus()
+            return False
+        
+        # Validasi 3: Jika filter aktif, date_end tidak boleh sebelum date_start
+        if inputs["filter_aktif"]:
+            if inputs["end_date"] < inputs["start_date"]:
+                QMessageBox.warning(
+                    self,
+                    "Input Error",
+                    "Tanggal selesai ('Sampai') tidak boleh sebelum tanggal mulai ('Dari')!"
+                )
+                self.date_end.setFocus()
+                return False
+        
+        # Semua validasi berhasil
+        return True
 
     def _toggle_date_filter(self, state: int) -> None:
         """
