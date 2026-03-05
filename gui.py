@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QTableWidget, QTableWidgetItem,
     QProgressBar, QSpinBox, QCheckBox, QDateEdit, QMessageBox,
-    QHeaderView, QSizePolicy
+    QHeaderView, QSizePolicy, QDialog, QTextBrowser
 )
 from PyQt5.QtCore import Qt, QDate
 from PyQt5.QtGui import QFont
@@ -236,8 +236,8 @@ class MainWindow(QMainWindow):
     PENTING: Simpan worker di self.worker (BUKAN variabel lokal!)
     """
 
-    KOLOM_TABEL = ["No", "Judul", "Tanggal", "Penulis", "Kategori", "URL", "Gambar"]
-    # Kolom "Isi" tidak ditampilkan di tabel tapi tetap ada di self.data_hasil untuk ekspor
+    KOLOM_TABEL = ["No", "Judul", "Tanggal", "Penulis", "Kategori", "URL", "Gambar", "Isi"]
+    # Kolom "Isi" ditampilkan singkat (150 karakter). Double-click baris untuk lihat isi lengkap.
 
     def __init__(self):
 
@@ -342,6 +342,8 @@ class MainWindow(QMainWindow):
         # dst.
         self.btn_export_csv.clicked.connect(self.export_csv)
         self.btn_export_xl.clicked.connect(self.export_excel)
+        # Double-click baris → tampilkan isi lengkap
+        self.tabel.cellDoubleClicked.connect(self._lihat_detail)
         pass
 
     def _set_state_idle(self) -> None:
@@ -446,6 +448,11 @@ class MainWindow(QMainWindow):
         self.tabel.setItem(row, 5, QTableWidgetItem(artikel.get("url", "")))
         self.tabel.setItem(row, 6, QTableWidgetItem(artikel.get("gambar_url", "")))
 
+        # Kolom Isi — tampilkan 150 karakter pertama, double-click untuk lihat lengkap
+        isi_raw = artikel.get("isi", "")
+        isi_singkat = isi_raw[:150] + ("..." if len(isi_raw) > 150 else "")
+        self.tabel.setItem(row, 7, QTableWidgetItem(isi_singkat))
+
         self.label_jumlah.setText(f"{len(self.data_hasil)} artikel")
         pass
 
@@ -472,6 +479,53 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Error", pesan)
         self._set_state_idle()
         pass
+
+    def _lihat_detail(self, row: int, col: int) -> None:
+        """
+        Tampilkan dialog popup isi lengkap artikel saat baris di-double-click.
+
+        Args:
+            row: indeks baris yang diklik
+            col: indeks kolom yang diklik (tidak dipakai)
+        """
+        if row >= len(self.data_hasil):
+            return
+
+        artikel = self.data_hasil[row]
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(artikel.get("judul", "Detail Artikel")[:80])
+        dialog.resize(700, 500)
+
+        layout = QVBoxLayout(dialog)
+
+        # ─── Info singkat (meta artikel) ────────────────────────
+        info_html = (
+            f"<b>Tanggal:</b> {artikel.get('tanggal', '-')} &nbsp;|&nbsp; "
+            f"<b>Penulis:</b> {artikel.get('penulis', '-')} &nbsp;|&nbsp; "
+            f"<b>Kategori:</b> {artikel.get('kategori', '-')}<br>"
+            f"<b>URL:</b> <a href='{artikel.get('url', '')}' style='color:#2980b9;'>"
+            f"{artikel.get('url', '-')}</a>"
+        )
+        label_info = QLabel(info_html)
+        label_info.setWordWrap(True)
+        label_info.setOpenExternalLinks(True)
+        label_info.setTextFormat(Qt.RichText)
+        layout.addWidget(label_info)
+
+        # ─── Isi artikel (teks lengkap) ─────────────────────────
+        layout.addWidget(QLabel("<b>Isi Artikel:</b>"))
+        text_isi = QTextBrowser()
+        text_isi.setPlainText(artikel.get("isi", "-"))
+        text_isi.setReadOnly(True)
+        layout.addWidget(text_isi)
+
+        # ─── Tombol tutup ────────────────────────────────────────
+        btn_tutup = QPushButton("Tutup")
+        btn_tutup.clicked.connect(dialog.accept)
+        layout.addWidget(btn_tutup)
+
+        dialog.exec_()
 
     def export_csv(self) -> None:
         """Panggil exporter.export_csv() dengan self.data_hasil."""
