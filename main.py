@@ -1,12 +1,3 @@
-# main.py
-# ╔══════════════════════════════════════════════════════════════╗
-# ║  TUGAS: Darva                                               ║
-# ╚══════════════════════════════════════════════════════════════╝
-#
-# Langkah Darva:
-#   1. Implementasi bagian utama (sudah diisi sebagian — lihat TODO di bawah)
-#   2. Pastikan app berjalan dengan: python main.py (Windows) / python3 main.py (Linux/Mac)
-
 import sys
 from pathlib import Path
 
