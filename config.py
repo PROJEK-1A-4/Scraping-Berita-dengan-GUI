@@ -1,6 +1,6 @@
 # config.py
 # ╔══════════════════════════════════════════════════════════════╗
-# ║  TUGAS: Kemal                                               ║
+# ║  TUGAS: Kemal                                                ║
 # ║  PRIORITAS: SELESAIKAN HARI 1 — semua file lain import di sini! ║
 # ╚══════════════════════════════════════════════════════════════╝
 #
@@ -41,6 +41,14 @@ LOG_FILE   = Path("logs") / "scraper.log"
 APP_TITLE  = "News Scraper App"
 WINDOW_W   = 1200
 WINDOW_H   = 700
+
+# ENCODING
+CSV_ENCODING = "utf-8-sig"  # encoding untuk file CSV 
+EXCEL_ENGINE = "openpyxl"    # engine untuk export Excel (.xlsx)
+
+#LOGGING
+LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"  # format log
+LOG_LEVEL  = "DEBUG"  # level log: DEBUG, INFO, WARNING, ERROR
 
 # ─── Header CSV/Excel (urutan WAJIB sama) ─────────────────────
 CSV_HEADERS = ["No", "Judul", "Tanggal", "Penulis", "Kategori", "Isi", "URL", "Gambar_URL"]
