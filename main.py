@@ -32,8 +32,8 @@ def main() -> None:
     # Inisialisasi Qt application
     app = QApplication(sys.argv)
 
-    # TODO Darva: terapkan stylesheet sebelum window dibuat
-    # style.apply_style(app)
+    # Terapkan stylesheet sebelum window dibuat
+    style.apply_style(app)
 
     # Buat dan tampilkan MainWindow
     from gui import MainWindow
