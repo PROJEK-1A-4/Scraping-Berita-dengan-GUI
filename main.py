@@ -44,15 +44,13 @@ def main() -> None:
     # TODO Darva: terapkan stylesheet sebelum window dibuat
     # style.apply_style(app)
 
-    # TODO Darva: buat dan tampilkan MainWindow
-    # from gui import MainWindow
-    # window = MainWindow()
-    # window.show()
+    # Buat dan tampilkan MainWindow
+    from gui import MainWindow
+    window = MainWindow()
+    window.show()
 
-    # TODO Darva: jalankan event loop dan exit bersih
-    # sys.exit(app.exec_())
-
-    pass
+    # Jalankan event loop dan exit bersih
+    sys.exit(app.exec_())
 
 
 if __name__ == "__main__":

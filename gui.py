@@ -66,26 +66,71 @@ class InputPanel(QWidget):
                                     default: hari ini
             - Tampilan rapi — gunakan QHBoxLayout / QVBoxLayout / QFormLayout
         """
-        # TODO Kyla: susun layout di sini
-        # Hint:
-        #   layout = QVBoxLayout(self)
-        #   Baris 1: Label "URL:" + self.input_url
-        #   Baris 2: Label "Limit:" + self.input_limit
-        #   Baris 3: self.checkbox_filter
-        #   Baris 4: Label "Dari:" + self.date_start + Label "s/d:" + self.date_end
-        #
-        #   # Konfigurasi widget:
-        #   self.input_url.setPlaceholderText("https://...")
-        #   self.input_limit.setRange(1, 500)
-        #   self.input_limit.setValue(config.DEFAULT_LIMIT)
-        #   self.date_start.setDate(QDate.currentDate())
-        #   self.date_end.setDate(QDate.currentDate())
-        #   self.date_start.setEnabled(False)
-        #   self.date_end.setEnabled(False)
-        #
-        #   # Hubungkan checkbox ke toggle:
-        #   self.checkbox_filter.stateChanged.connect(self._toggle_date_filter)
-        pass
+        # Layout utama
+        layout = QVBoxLayout(self)
+
+        # ─── Baris 1: URL Input ──────────────────────────────────
+        url_layout = QHBoxLayout()
+        label_url = QLabel("URL:")
+        label_url.setFixedWidth(60)
+        self.input_url.setPlaceholderText("https://www.cnnindonesia.com")
+        self.input_url.setMinimumHeight(32)
+        self.input_url.setClearButtonEnabled(True)  # Built-in clear button
+        url_layout.addWidget(label_url)
+        url_layout.addWidget(self.input_url)
+        layout.addLayout(url_layout)
+
+        # ─── Baris 2: Limit Artikel ──────────────────────────────
+        limit_layout = QHBoxLayout()
+        label_limit = QLabel("Limit:")
+        label_limit.setFixedWidth(60)
+        self.input_limit.setRange(1, 500)
+        self.input_limit.setValue(config.DEFAULT_LIMIT)
+        self.input_limit.setSuffix(" artikel")  # Add suffix untuk clarity
+        self.input_limit.setMinimumHeight(32)   # Match URL input height
+        self.input_limit.setMinimumWidth(120)   # Cukup lebar untuk display
+        limit_layout.addWidget(label_limit)
+        limit_layout.addWidget(self.input_limit)
+        limit_layout.addStretch()  # Push ke kiri
+        layout.addLayout(limit_layout)
+
+        # ─── Baris 3: Checkbox Filter Tanggal ────────────────────
+        self.checkbox_filter.setToolTip("Centang untuk mengaktifkan filter tanggal (artikel antara Dari dan Sampai)")
+        self.checkbox_filter.setChecked(False)  # Explicit default unchecked
+        layout.addWidget(self.checkbox_filter)
+
+        # ─── Baris 4: Date Range ────────────────────────────────
+        date_layout = QHBoxLayout()
+        label_dari = QLabel("Dari:")
+        label_dari.setFixedWidth(60)
+        
+        self.date_start.setDate(QDate.currentDate())
+        self.date_start.setEnabled(False)
+        self.date_start.setDisplayFormat("dd/MM/yyyy")  # Readable format
+        self.date_start.setCalendarPopup(True)  # Popup calendar saat diklik
+        self.date_start.setMinimumHeight(32)  # Match other widgets
+        self.date_start.setToolTip("Pilih tanggal awal (Double-click atau klik icon kalender)")
+
+        label_sampai = QLabel("Sampai:")
+        self.date_end.setDate(QDate.currentDate())
+        self.date_end.setEnabled(False)
+        self.date_end.setDisplayFormat("dd/MM/yyyy")  # Readable format
+        self.date_end.setCalendarPopup(True)  # Popup calendar saat diklik
+        self.date_end.setMinimumHeight(32)  # Match other widgets
+        self.date_end.setToolTip("Pilih tanggal akhir (Double-click atau klik icon kalender)")
+
+        date_layout.addWidget(label_dari)
+        date_layout.addWidget(self.date_start)
+        date_layout.addWidget(label_sampai)
+        date_layout.addWidget(self.date_end)
+        date_layout.addStretch()  # Push ke kiri
+        layout.addLayout(date_layout)
+
+        # ─── Hubungkan checkbox signal ke toggle method ──────────
+        self.checkbox_filter.stateChanged.connect(self._toggle_date_filter)
+
+        # Add stretch di akhir agar widget tidak mengambil full height
+        layout.addStretch()
 
     def get_inputs(self) -> dict:
         """
@@ -99,13 +144,14 @@ class InputPanel(QWidget):
                 "start_date"   : QDate (atau None jika filter off)
                 "end_date"     : QDate (atau None jika filter off)
         """
-        # TODO Kyla: return nilai dari setiap widget
+        filter_aktif = self.checkbox_filter.isChecked()
+        
         return {
-            "url"          : "",
-            "limit"        : config.DEFAULT_LIMIT,
-            "filter_aktif" : False,
-            "start_date"   : None,
-            "end_date"     : None,
+            "url"          : self.input_url.text().strip(),
+            "limit"        : self.input_limit.value(),
+            "filter_aktif" : filter_aktif,
+            "start_date"   : self.date_start.date() if filter_aktif else None,
+            "end_date"     : self.date_end.date() if filter_aktif else None,
         }
 
     def validate(self) -> bool:
@@ -121,20 +167,41 @@ class InputPanel(QWidget):
         Returns:
             bool: True jika semua input valid, False jika ada error
         """
-        # TODO Kyla: implementasikan validasi
-        # Hint:
-        #   inputs = self.get_inputs()
-        #   if not inputs["url"]:
-        #       QMessageBox.warning(self, "Input Error", "URL tidak boleh kosong!")
-        #       return False
-        #   if not inputs["url"].startswith(("http://", "https://")):
-        #       QMessageBox.warning(...)
-        #       return False
-        #   if inputs["filter_aktif"] and inputs["end_date"] < inputs["start_date"]:
-        #       QMessageBox.warning(...)
-        #       return False
-        #   return True
-        return False
+        inputs = self.get_inputs()
+        
+        # Validasi 1: URL tidak boleh kosong
+        if not inputs["url"]:
+            QMessageBox.warning(
+                self, 
+                "Input Error", 
+                "URL tidak boleh kosong!\n\nContoh: https://www.cnnindonesia.com"
+            )
+            self.input_url.setFocus()
+            return False
+        
+        # Validasi 2: URL harus diawali http:// atau https://
+        if not inputs["url"].startswith(("http://", "https://")):
+            QMessageBox.warning(
+                self,
+                "Input Error",
+                "URL harus diawali dengan 'http://' atau 'https://'\n\nContoh: https://www.cnnindonesia.com"
+            )
+            self.input_url.setFocus()
+            return False
+        
+        # Validasi 3: Jika filter aktif, date_end tidak boleh sebelum date_start
+        if inputs["filter_aktif"]:
+            if inputs["end_date"] < inputs["start_date"]:
+                QMessageBox.warning(
+                    self,
+                    "Input Error",
+                    "Tanggal selesai ('Sampai') tidak boleh sebelum tanggal mulai ('Dari')!"
+                )
+                self.date_end.setFocus()
+                return False
+        
+        # Semua validasi berhasil
+        return True
 
     def _toggle_date_filter(self, state: int) -> None:
         """
@@ -143,11 +210,9 @@ class InputPanel(QWidget):
         Args:
             state: Qt.Checked atau Qt.Unchecked
         """
-        # TODO Kyla: aktifkan/nonaktifkan date_start dan date_end
-        # aktif = (state == Qt.Checked)
-        # self.date_start.setEnabled(aktif)
-        # self.date_end.setEnabled(aktif)
-        pass
+        aktif = (state == Qt.Checked)
+        self.date_start.setEnabled(aktif)
+        self.date_end.setEnabled(aktif)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -209,49 +274,41 @@ class MainWindow(QMainWindow):
             - label_status + label_jumlah di area bawah                     (DONE)
             - input_panel di atas atau sidebar kiri                         (DONE)
         """
-        # TODO Richard: implementasikan layout utama                        (DONE)
-
-        #   central = QWidget()
+        # Setup central widget
         central = QWidget()
-        #   self.setCentralWidget(central)
         self.setCentralWidget(central)
-        #   main_layout = QVBoxLayout(central)
         main_layout = QVBoxLayout(central)
 
-        top_layout = QHBoxLayout()
-        top_layout.addWidget(self.input_panel)
-
-        btn_layout = QVBoxLayout()
-        btn_layout.addWidget(self.btn_scrape)
-        btn_layout.addWidget(self.btn_stop)
-        btn_layout.addWidget(self.btn_export_csv)
-        btn_layout.addWidget(self.btn_export_xl)
-        top_layout.addLayout(btn_layout)
-
-        main_layout.addLayout(top_layout)
-
-        #   SETUP TABEL:                                                    (DONE)
-
-        #   self.tabel.setColumnCount(len(self.KOLOM_TABEL))
+        # Setup tabel:
         self.tabel.setColumnCount(len(self.KOLOM_TABEL))
-        #   self.tabel.setHorizontalHeaderLabels(self.KOLOM_TABEL)
         self.tabel.setHorizontalHeaderLabels(self.KOLOM_TABEL)
-        #   self.tabel.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.tabel.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        #   self.tabel.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tabel.setEditTriggers(QTableWidget.NoEditTriggers)
-        #   self.tabel.setAlternatingRowColors(True)
         self.tabel.setAlternatingRowColors(True)
+
+        # Progress bar:
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+
+        # ─── Add InputPanel (Kyla's work) ────────────────────────
+        main_layout.addWidget(self.input_panel)
+
+        # ─── Add Table ───────────────────────────────────────────
         main_layout.addWidget(self.tabel)
 
-        #   PROGRESS BAR:                                                   (DONE)
-
-        #   self.progress_bar.setRange(0, 100)
-        self.progress_bar.setRange(0, 100)
-        #   self.progress_bar.setValue(0)
-        self.progress_bar.setValue(0)
+        # ─── Add Progress Bar ────────────────────────────────────
         main_layout.addWidget(self.progress_bar)
 
+        # ─── Add Buttons Layout ──────────────────────────────────
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addWidget(self.btn_scrape)
+        buttons_layout.addWidget(self.btn_stop)
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.btn_export_csv)
+        buttons_layout.addWidget(self.btn_export_xl)
+        main_layout.addLayout(buttons_layout)
+
+        # ─── Add Status Bar ──────────────────────────────────────
         status_layout = QHBoxLayout()
         status_layout.addWidget(self.label_status)
         status_layout.addStretch()
