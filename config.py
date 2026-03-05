@@ -1,6 +1,6 @@
 # config.py
 # ╔══════════════════════════════════════════════════════════════╗
-# ║  TUGAS: Kemal                                                ║
+# ║  TUGAS: Kemal                                               ║
 # ║  PRIORITAS: SELESAIKAN HARI 1 — semua file lain import di sini! ║
 # ╚══════════════════════════════════════════════════════════════╝
 #
@@ -25,8 +25,8 @@ FIELD_KOSONG   = "-"      # nilai default untuk field yang tidak ditemukan
 
 # ─── Validasi artikel — dipakai is_artikel_valid() di scraper.py ──
 # TODO Kemal: pastikan nilai ini masuk akal sebelum commit
-MIN_JUDUL_CHARS = 5       # judul minimal N karakter agar dianggap valid
-MIN_ISI_CHARS   = 20      # isi minimal N karakter agar dianggap valid
+MIN_JUDUL_CHARS = 15       # judul minimal N karakter agar dianggap valid
+MIN_ISI_CHARS   = 100      # isi minimal N karakter agar dianggap valid
 
 # ─── Filter tanggal ───────────────────────────────────────────
 # True  = artikel tanggal tidak dikenali TETAP tampil saat filter aktif
@@ -41,14 +41,13 @@ LOG_FILE   = Path("logs") / "scraper.log"
 APP_TITLE  = "News Scraper App"
 WINDOW_W   = 1200
 WINDOW_H   = 700
+# ─── Encoding dan format ──────────────────────────────────
+CSV_ENCODING = "utf-8-sig"  # encoding untuk file CSV
+EXCEL_ENGINE = "openpyxl"   # engine untuk export Excel (.xlsx)
 
-# ENCODING
-CSV_ENCODING = "utf-8-sig"  # encoding untuk file CSV 
-EXCEL_ENGINE = "openpyxl"    # engine untuk export Excel (.xlsx)
-
-#LOGGING
-LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"  # format log
-LOG_LEVEL  = "DEBUG"  # level log: DEBUG, INFO, WARNING, ERROR
+# ─── Logging ──────────────────────────────────────────────────
+LOG_FORMAT   = "%(asctime)s - %(levelname)s - %(message)s"  # format log
+LOG_LEVEL    = "DEBUG"      # level log: DEBUG, INFO, WARNING, ERROR
 
 # ─── Header CSV/Excel (urutan WAJIB sama) ─────────────────────
-CSV_HEADERS = ["No", "Judul", "Tanggal", "Penulis", "Kategori", "Isi", "URL", "Gambar_URL"]
+CSV_HEADERS = ["No", "judul", "tanggal", "penulis", "kategori", "isi", "url", "gambar_url"]
