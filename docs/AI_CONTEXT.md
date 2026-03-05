@@ -1,6 +1,5 @@
 # 🤖 AI_CONTEXT.md — Konteks Proyek untuk AI Assistant
-> Paste file ini di awal setiap sesi chat baru dengan AI (ChatGPT / Claude / Copilot / Cursor)
-> Untuk sesi cepat sehari-hari, gunakan AI_CONTEXT_SHORT.md (versi ~40 baris)
+Saya sedang mengerjakan proyek ini dengan strategi atomic commit (satu fitur/fungsi kecil = satu commit). Tolong jangan berikan seluruh kode file sekaligus. Berikan kode HANYA untuk fungsi spesifik yang saya minta. Tunggu instruksi saya selanjutnya sebelum melanjutkan ke fungsi lain.
 
 ---
 

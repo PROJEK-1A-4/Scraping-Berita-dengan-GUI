@@ -53,17 +53,20 @@ def setup_driver() -> webdriver.Chrome:
     Returns:
         webdriver.Chrome: driver yang siap dipakai
     """
-    # TODO Darva: implementasikan setup driver di sini
-    # Hint:
-    #   options = Options()
-    #   if config.HEADLESS: options.add_argument("--headless")
-    #   options.add_argument(f"user-agent={config.USER_AGENT}")
-    #   options.add_argument("--no-sandbox")
-    #   options.add_argument("--disable-dev-shm-usage")
-    #   service = Service(ChromeDriverManager().install())
-    #   driver = webdriver.Chrome(service=service, options=options)
-    #   driver.set_page_load_timeout(config.PAGE_LOAD_WAIT)
-    raise NotImplementedError("TODO Darva: implementasi setup_driver()")
+    options = Options()
+
+    if config.HEADLESS:
+        options.add_argument("--headless")
+
+    options.add_argument(f"user-agent={config.USER_AGENT}")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
+    driver.set_page_load_timeout(config.PAGE_LOAD_WAIT)
+
+    return driver
 
 
 def _extract_text(driver: webdriver.Chrome, selectors: list[tuple], default: str = "-") -> str:
