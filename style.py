@@ -38,6 +38,48 @@ QMainWindow, QWidget {
     color: #E8EAF0;
 }
 
+/* ═══ QMenuBar ════════════════════════════════════════════════════════ */
+QMenuBar {
+    background-color: #181C27;
+    border-bottom: 1px solid #2A3147;
+    padding: 2px 4px;
+    font-size: 12px;
+    color: #E8EAF0;
+}
+QMenuBar::item {
+    background: transparent;
+    padding: 6px 14px;
+    border-radius: 4px;
+    color: #E8EAF0;
+}
+QMenuBar::item:selected {
+    background-color: #2A3147;
+    color: #4F8EF7;
+}
+QMenu {
+    background-color: #1E2333;
+    border: 1px solid #2A3147;
+    border-radius: 6px;
+    padding: 4px 0px;
+}
+QMenu::item {
+    padding: 8px 24px 8px 16px;
+    font-size: 12px;
+    color: #E8EAF0;
+}
+QMenu::item:selected {
+    background-color: rgba(79, 142, 247, 0.15);
+    color: #4F8EF7;
+}
+QMenu::separator {
+    height: 1px;
+    background-color: #2A3147;
+    margin: 4px 8px;
+}
+QMenu::item:disabled {
+    color: #3A4566;
+}
+
 /* ═══ QLabel ══════════════════════════════════════════════════════════ */
 QLabel {
     font-size: 12px;
@@ -83,13 +125,43 @@ QSpinBox, QDateEdit {
 QSpinBox:focus, QDateEdit:focus {
     border: 1px solid #4F8EF7;
 }
-QSpinBox::up-button, QSpinBox::down-button,
+QSpinBox::up-button, QSpinBox::down-button {
+    background-color: #2A3147;
+    border: none;
+    width: 24px;
+    border-radius: 3px;
+    margin: 1px;
+}
+QSpinBox::up-button:hover, QSpinBox::down-button:hover {
+    background-color: #4F8EF7;
+}
+QSpinBox::up-arrow {
+    image: none;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 6px solid #E8EAF0;
+    width: 0;
+    height: 0;
+}
+QSpinBox::down-arrow {
+    image: none;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #E8EAF0;
+    width: 0;
+    height: 0;
+}
+QSpinBox::up-arrow:hover {
+    border-bottom-color: #ffffff;
+}
+QSpinBox::down-arrow:hover {
+    border-top-color: #ffffff;
+}
 QDateEdit::up-button, QDateEdit::down-button {
     background-color: #2A3147;
     border: none;
     width: 16px;
 }
-QSpinBox::up-button:hover, QSpinBox::down-button:hover,
 QDateEdit::up-button:hover, QDateEdit::down-button:hover {
     background-color: #4F8EF7;
 }

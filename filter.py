@@ -31,9 +31,13 @@ def parse_tanggal(tanggal_str: str) -> datetime.date | None:
     Parse string tanggal dari artikel menjadi datetime.date.
 
     Format yang harus didukung:
+        - "2025-03-04T21:00:42Z"          (ISO 8601 UTC)
+        - "2025-03-04T21-00-42Z"          (ISO 8601 dash variant)
+        - "2025-03-04T20:48:39.000Z"      (ISO 8601 with ms)
+        - "2025-03-04T21:00:42+07:00"     (ISO 8601 with timezone)
         - "04 Mar 2025"   (singkatan Inggris — dari strptime %b)
         - "4 Maret 2025"  (Indonesia penuh — pakai BULAN_INDONESIA)
-        - "2025-03-04"    (ISO 8601)
+        - "2025-03-04"    (ISO 8601 date only)
         - "04/03/2025"    (DD/MM/YYYY)
 
     Args:
@@ -42,12 +46,35 @@ def parse_tanggal(tanggal_str: str) -> datetime.date | None:
     Returns:
         datetime.date jika format dikenali, None jika tidak dikenali
     """
+    import re
+
     if not tanggal_str or tanggal_str == config.FIELD_KOSONG:
         return None
 
     s = tanggal_str.strip()
 
-    # Format 1: ISO 8601 — "2025-03-04"
+    # Normalisasi: ganti T21-00-42Z → T21:00:42Z (beberapa sumber pakai dash di jam)
+    s = re.sub(
+        r'T(\d{2})-(\d{2})-(\d{2})(\.\d+)?(Z|[+\-]\d{2}:\d{2})?',
+        r'T\1:\2:\3\4\5',
+        s
+    )
+
+    # Format ISO 8601 dengan waktu
+    iso_formats = [
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%dT%H:%M:%S.%f%z",
+        "%Y-%m-%dT%H:%M:%S",
+    ]
+    for fmt in iso_formats:
+        try:
+            return datetime.datetime.strptime(s, fmt).date()
+        except ValueError:
+            pass
+
+    # Format 1: ISO 8601 date only — "2025-03-04"
     try:
         return datetime.datetime.strptime(s, "%Y-%m-%d").date()
     except ValueError:

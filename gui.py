@@ -15,14 +15,76 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QTableWidget, QTableWidgetItem,
     QProgressBar, QSpinBox, QCheckBox, QDateEdit, QMessageBox,
-    QHeaderView, QSizePolicy, QDialog, QTextBrowser
+    QHeaderView, QSizePolicy, QDialog, QTextBrowser,
+    QMenuBar, QMenu, QAction, QFormLayout, QDoubleSpinBox, QGroupBox,
+    QGridLayout, QFrame
 )
-from PyQt5.QtCore import Qt, QDate
-from PyQt5.QtGui import QFont, QPixmap
+from PyQt5.QtCore import Qt, QDate, QLocale
+from PyQt5.QtGui import QFont, QPixmap, QIcon
 
 import config
 import worker as worker_module
 import exporter
+
+# ── Mapping bulan Indonesia untuk format tanggal ──────────────
+_BULAN_ID = {
+    1: "Januari", 2: "Februari", 3: "Maret", 4: "April",
+    5: "Mei", 6: "Juni", 7: "Juli", 8: "Agustus",
+    9: "September", 10: "Oktober", 11: "November", 12: "Desember",
+}
+
+def _format_tanggal(raw: str) -> str:
+    """
+    Konversi string tanggal mentah (ISO 8601 dsb.) ke format
+    'dd MMMM yyyy, HH:mm WIB' yang mudah dibaca.
+
+    Contoh:
+        '2026-03-05T21:00:42Z'       → '05 Maret 2026, 21:00 WIB'
+        '2026-03-05T21-00-42Z'       → '05 Maret 2026, 21:00 WIB'
+        '2026-03-05'                 → '05 Maret 2026'
+        'Rabu, 5 Mar 2026 10:30'     → tetap apa adanya (fallback)
+    """
+    if not raw or raw == config.FIELD_KOSONG:
+        return raw
+
+    from datetime import datetime, timezone, timedelta
+    import re
+
+    text = raw.strip()
+
+    # Normalisasi: ganti T21-00-42Z → T21:00:42Z (beberapa sumber pakai dash)
+    # Pattern: huruf T diikuti digit-digit-digit lalu Z atau offset
+    text = re.sub(
+        r'T(\d{2})-(\d{2})-(\d{2})(\.\d+)?(Z|[+\-]\d{2}:\d{2})?',
+        r'T\1:\2:\3\4\5',
+        text
+    )
+
+    # Coba parse berbagai format ISO umum
+    formats = [
+        "%Y-%m-%dT%H:%M:%SZ",           # 2026-03-05T21:00:42Z
+        "%Y-%m-%dT%H:%M:%S%z",          # 2026-03-05T21:00:42+07:00
+        "%Y-%m-%dT%H:%M:%S.%fZ",        # 2026-03-05T20:48:39.000Z
+        "%Y-%m-%dT%H:%M:%S.%f%z",       # 2026-03-05T20:48:39.000+07:00
+        "%Y-%m-%dT%H:%M:%S",            # 2026-03-05T21:00:42
+        "%Y-%m-%d %H:%M:%S",            # 2026-03-05 21:00:42
+        "%Y-%m-%d",                      # 2026-03-05
+    ]
+
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(text, fmt)
+            hari = f"{dt.day:02d}"
+            bulan = _BULAN_ID.get(dt.month, str(dt.month))
+            tahun = dt.year
+            if dt.hour or dt.minute:
+                return f"{hari} {bulan} {tahun}, {dt.hour:02d}:{dt.minute:02d} WIB"
+            return f"{hari} {bulan} {tahun}"
+        except ValueError:
+            continue
+
+    # Fallback: kembalikan apa adanya
+    return raw
 
 
 # ══════════════════════════════════════════════════════════════
@@ -86,11 +148,15 @@ class InputPanel(QWidget):
         label_limit.setFixedWidth(60)
         self.input_limit.setRange(1, 500)
         self.input_limit.setValue(config.DEFAULT_LIMIT)
-        self.input_limit.setSuffix(" artikel")  # Add suffix untuk clarity
-        self.input_limit.setMinimumHeight(32)   # Match URL input height
-        self.input_limit.setMinimumWidth(120)   # Cukup lebar untuk display
+        self.input_limit.setMinimumHeight(36)   # Sedikit lebih tinggi agar tombol terlihat
+        self.input_limit.setMinimumWidth(100)   # Cukup lebar untuk angka
+        self.input_limit.setAlignment(Qt.AlignCenter)  # Angka di tengah
+        self.input_limit.setButtonSymbols(QSpinBox.PlusMinus)  # Gunakan simbol +/−
+        label_artikel = QLabel("artikel")
+        label_artikel.setStyleSheet("color: #6B7699; font-size: 12px; padding-left: 4px;")
         limit_layout.addWidget(label_limit)
         limit_layout.addWidget(self.input_limit)
+        limit_layout.addWidget(label_artikel)
         limit_layout.addStretch()  # Push ke kiri
         layout.addLayout(limit_layout)
 
@@ -106,15 +172,18 @@ class InputPanel(QWidget):
         
         self.date_start.setDate(QDate.currentDate())
         self.date_start.setEnabled(False)
-        self.date_start.setDisplayFormat("dd/MM/yyyy")  # Readable format
+        self.date_start.setDisplayFormat("dd MMMM yyyy")  # Format lengkap: 05 Maret 2026
+        self.date_start.setLocale(QLocale(QLocale.Indonesian, QLocale.Indonesia))
         self.date_start.setCalendarPopup(True)  # Popup calendar saat diklik
         self.date_start.setMinimumHeight(32)  # Match other widgets
+        self.date_start.setMinimumWidth(180)  # Lebar cukup untuk nama bulan
         self.date_start.setToolTip("Pilih tanggal awal (Double-click atau klik icon kalender)")
 
         label_sampai = QLabel("Sampai:")
         self.date_end.setDate(QDate.currentDate())
         self.date_end.setEnabled(False)
-        self.date_end.setDisplayFormat("dd/MM/yyyy")  # Readable format
+        self.date_end.setDisplayFormat("dd MMMM yyyy")  # Format lengkap: 05 Maret 2026
+        self.date_end.setLocale(QLocale(QLocale.Indonesian, QLocale.Indonesia))
         self.date_end.setCalendarPopup(True)  # Popup calendar saat diklik
         self.date_end.setMinimumHeight(32)  # Match other widgets
         self.date_end.setToolTip("Pilih tanggal akhir (Double-click atau klik icon kalender)")
@@ -269,9 +338,295 @@ class MainWindow(QMainWindow):
         self.btn_export_csv.setObjectName("btn_export_csv")
         self.btn_export_xl.setObjectName("btn_export_xl")
 
+        self._setup_menu_bar()
         self._setup_ui()
         self._connect_signals()
         self._set_state_idle()   # set initial button states
+
+    # ══════════════════════════════════════════════════════════
+    #  MENU BAR
+    # ══════════════════════════════════════════════════════════
+
+    def _setup_menu_bar(self) -> None:
+        """Buat menu bar: File, Pengaturan, Tentang."""
+        menubar = self.menuBar()
+        menubar.setObjectName("main_menubar")
+
+        # ─── Menu File ────────────────────────────────────────
+        menu_file = menubar.addMenu("File")
+
+        self.act_scrape = QAction("▶  Mulai Scraping", self)
+        self.act_scrape.setShortcut("Ctrl+R")
+        self.act_scrape.triggered.connect(lambda: self.mulai_scraping())
+        menu_file.addAction(self.act_scrape)
+
+        self.act_stop = QAction("■  Stop Scraping", self)
+        self.act_stop.setShortcut("Ctrl+Q")
+        self.act_stop.triggered.connect(lambda: self.stop_scraping())
+        menu_file.addAction(self.act_stop)
+
+        menu_file.addSeparator()
+
+        act_csv = QAction("↓  Export CSV", self)
+        act_csv.setShortcut("Ctrl+Shift+C")
+        act_csv.triggered.connect(lambda: self.export_csv())
+        menu_file.addAction(act_csv)
+
+        act_xl = QAction("↓  Export Excel", self)
+        act_xl.setShortcut("Ctrl+Shift+E")
+        act_xl.triggered.connect(lambda: self.export_excel())
+        menu_file.addAction(act_xl)
+
+        menu_file.addSeparator()
+
+        act_keluar = QAction("Keluar", self)
+        act_keluar.setShortcut("Ctrl+W")
+        act_keluar.triggered.connect(self.close)
+        menu_file.addAction(act_keluar)
+
+        # ─── Menu Pengaturan ──────────────────────────────────
+        menu_pengaturan = menubar.addMenu("Pengaturan")
+
+        act_setting = QAction("⚙  Konfigurasi Scraping", self)
+        act_setting.triggered.connect(self._buka_pengaturan)
+        menu_pengaturan.addAction(act_setting)
+
+        # ─── Menu Tentang ─────────────────────────────────────
+        menu_tentang = menubar.addMenu("Tentang")
+
+        act_about = QAction("ℹ  Tentang Aplikasi", self)
+        act_about.triggered.connect(self._buka_tentang)
+        menu_tentang.addAction(act_about)
+
+        act_tim = QAction("👥  Tim Pengembang", self)
+        act_tim.triggered.connect(self._buka_tim)
+        menu_tentang.addAction(act_tim)
+
+    def _buka_pengaturan(self) -> None:
+        """Buka dialog pengaturan scraping."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Konfigurasi Scraping")
+        dialog.setFixedSize(500, 340)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # ─── Judul ────────────────────────────────────────────
+        title = QLabel("⚙  Konfigurasi Scraping")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #E8EAF0; padding-bottom: 4px;")
+        layout.addWidget(title)
+
+        # ─── Form ─────────────────────────────────────────────
+        form = QFormLayout()
+        form.setSpacing(10)
+        form.setLabelAlignment(Qt.AlignRight)
+
+        # Delay
+        spin_delay = QDoubleSpinBox()
+        spin_delay.setRange(0.5, 10.0)
+        spin_delay.setSingleStep(0.5)
+        spin_delay.setValue(config.DEFAULT_DELAY)
+        spin_delay.setSuffix(" detik")
+        spin_delay.setDecimals(1)
+        label_delay = QLabel("Delay antar request:")
+        label_delay.setStyleSheet("color: #E8EAF0; font-size: 12px;")
+        form.addRow(label_delay, spin_delay)
+
+        # Headless
+        chk_headless = QCheckBox("Mode Headless")
+        chk_headless.setToolTip("Jalankan browser tanpa tampilan (lebih cepat)")
+        chk_headless.setChecked(config.HEADLESS)
+        label_headless = QLabel("Browser:")
+        label_headless.setStyleSheet("color: #E8EAF0; font-size: 12px;")
+        form.addRow(label_headless, chk_headless)
+
+        # Keterangan headless
+        lbl_note = QLabel("Tanpa tampilan browser, proses lebih cepat")
+        lbl_note.setStyleSheet("color: #6B7699; font-size: 10px; padding-left: 2px;")
+        form.addRow(QLabel(""), lbl_note)
+
+        # Page Load Wait
+        spin_wait = QSpinBox()
+        spin_wait.setRange(5, 60)
+        spin_wait.setValue(config.PAGE_LOAD_WAIT)
+        spin_wait.setSuffix(" detik")
+        label_wait = QLabel("Timeout halaman:")
+        label_wait.setStyleSheet("color: #E8EAF0; font-size: 12px;")
+        form.addRow(label_wait, spin_wait)
+
+        # Max Isi Chars
+        spin_isi = QSpinBox()
+        spin_isi.setRange(500, 10000)
+        spin_isi.setSingleStep(500)
+        spin_isi.setValue(config.MAX_ISI_CHARS)
+        spin_isi.setSuffix(" karakter")
+        label_isi = QLabel("Maks isi artikel:")
+        label_isi.setStyleSheet("color: #E8EAF0; font-size: 12px;")
+        form.addRow(label_isi, spin_isi)
+
+        layout.addLayout(form)
+        layout.addStretch()
+
+        # ─── Tombol ───────────────────────────────────────────
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        btn_batal = QPushButton("Batal")
+        btn_batal.setObjectName("btn_stop")
+        btn_batal.setFixedWidth(100)
+        btn_batal.clicked.connect(dialog.reject)
+        btn_layout.addWidget(btn_batal)
+
+        btn_simpan = QPushButton("Simpan")
+        btn_simpan.setFixedWidth(100)
+        btn_layout.addWidget(btn_simpan)
+
+        layout.addLayout(btn_layout)
+
+        def simpan():
+            config.DEFAULT_DELAY = spin_delay.value()
+            config.HEADLESS = chk_headless.isChecked()
+            config.PAGE_LOAD_WAIT = spin_wait.value()
+            config.MAX_ISI_CHARS = spin_isi.value()
+            # Update bottom bar
+            self.label_delay.setText(f"DELAY: {config.DEFAULT_DELAY}s")
+            self.label_headless.setText(f"HEADLESS: {'ON' if config.HEADLESS else 'OFF'}")
+            dialog.accept()
+
+        btn_simpan.clicked.connect(simpan)
+        dialog.exec_()
+
+    def _buka_tentang(self) -> None:
+        """Buka dialog Tentang Aplikasi."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Tentang Aplikasi")
+        dialog.setFixedSize(460, 320)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(12)
+        layout.setContentsMargins(24, 24, 24, 24)
+
+        # Icon / Judul
+        title = QLabel("📰  News Scraper App")
+        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #4F8EF7;")
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+
+        # Versi
+        ver = QLabel("Versi 1.0.0")
+        ver.setStyleSheet("font-size: 12px; color: #6B7699;")
+        ver.setAlignment(Qt.AlignCenter)
+        layout.addWidget(ver)
+
+        layout.addSpacing(8)
+
+        # Deskripsi
+        desc = QLabel(
+            "Aplikasi desktop berbasis Python untuk mengambil data berita\n"
+            "secara otomatis dari website berita Indonesia.\n\n"
+            "User cukup memasukkan URL, aplikasi akan mengambil\n"
+            "semua artikel beserta isinya dan menampilkan hasilnya\n"
+            "dalam tabel yang rapi."
+        )
+        desc.setStyleSheet("font-size: 12px; color: #E8EAF0; line-height: 1.5;")
+        desc.setAlignment(Qt.AlignCenter)
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        layout.addSpacing(4)
+
+        # Stack
+        stack = QLabel("Python 3.12  •  Selenium  •  PyQt5  •  pandas")
+        stack.setStyleSheet("font-size: 11px; color: #00D4AA; font-family: monospace;")
+        stack.setAlignment(Qt.AlignCenter)
+        layout.addWidget(stack)
+
+        layout.addStretch()
+
+        # Tombol tutup
+        btn_tutup = QPushButton("Tutup")
+        btn_tutup.setFixedWidth(120)
+        btn_tutup.clicked.connect(dialog.accept)
+        h = QHBoxLayout()
+        h.addStretch()
+        h.addWidget(btn_tutup)
+        h.addStretch()
+        layout.addLayout(h)
+
+        dialog.exec_()
+
+    def _buka_tim(self) -> None:
+        """Buka dialog Tim Pengembang."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Tim Pengembang")
+        dialog.setFixedSize(500, 420)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(12)
+        layout.setContentsMargins(24, 20, 24, 20)
+
+        title = QLabel("👥  Tim Pengembang")
+        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #4F8EF7;")
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+
+        subtitle = QLabel("Proyek 1: Pengembangan Perangkat Lunak Desktop")
+        subtitle.setStyleSheet("font-size: 11px; color: #6B7699;")
+        subtitle.setAlignment(Qt.AlignCenter)
+        layout.addWidget(subtitle)
+
+        layout.addSpacing(8)
+
+        # Daftar anggota tim
+        tim = [
+            ("Darva",   "Lead Developer + Reviewer",         "#4F8EF7"),
+            ("Kemal",   "Data & Reliability Developer",      "#00D4AA"),
+            ("Richard", "GUI Developer (Fungsional)",         "#F7C948"),
+            ("Kyla",    "GUI Developer (Input & Filter)",     "#F75A5A"),
+            ("Aulia",   "UI Polish + Dokumentasi",            "#C084FC"),
+        ]
+
+        for nama, peran, warna in tim:
+            card = QFrame()
+            card.setObjectName("tim_card")
+            card.setStyleSheet(
+                f"QFrame#tim_card {{"
+                f"  background-color: #1E2333;"
+                f"  border: 1px solid #2A3147;"
+                f"  border-left: 3px solid {warna};"
+                f"  border-radius: 6px;"
+                f"  padding: 8px 12px;"
+                f"}}"
+            )
+            card_layout = QHBoxLayout(card)
+            card_layout.setContentsMargins(12, 6, 12, 6)
+
+            lbl_nama = QLabel(nama)
+            lbl_nama.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {warna}; background: transparent;")
+            lbl_nama.setFixedWidth(90)
+
+            lbl_peran = QLabel(peran)
+            lbl_peran.setStyleSheet("font-size: 12px; color: #E8EAF0; background: transparent;")
+
+            card_layout.addWidget(lbl_nama)
+            card_layout.addWidget(lbl_peran)
+            card_layout.addStretch()
+
+            layout.addWidget(card)
+
+        layout.addStretch()
+
+        btn_tutup = QPushButton("Tutup")
+        btn_tutup.setFixedWidth(120)
+        btn_tutup.clicked.connect(dialog.accept)
+        h = QHBoxLayout()
+        h.addStretch()
+        h.addWidget(btn_tutup)
+        h.addStretch()
+        layout.addLayout(h)
+
+        dialog.exec_()
 
     def _setup_ui(self) -> None:
         """
@@ -481,7 +836,7 @@ class MainWindow(QMainWindow):
         no_item.setTextAlignment(Qt.AlignCenter)
         self.tabel.setItem(row, 0, no_item)
         self.tabel.setItem(row, 1, QTableWidgetItem(artikel.get("judul", "")))
-        self.tabel.setItem(row, 2, QTableWidgetItem(artikel.get("tanggal", "")))
+        self.tabel.setItem(row, 2, QTableWidgetItem(_format_tanggal(artikel.get("tanggal", ""))))
         self.tabel.setItem(row, 3, QTableWidgetItem(artikel.get("penulis", "")))
         self.tabel.setItem(row, 4, QTableWidgetItem(artikel.get("kategori", "")))
 

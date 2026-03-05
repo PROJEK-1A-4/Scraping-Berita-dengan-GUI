@@ -1,5 +1,4 @@
 # 📰 BLUEPRINT — News Scraper App
-> Tugas Kelompok Web Scraping | Deadline: Sabtu, 7 Maret 2025 pukul 23.59
 
 ---
 
@@ -17,7 +16,10 @@
 
 ## 🎯 Deskripsi Aplikasi
 
-Aplikasi desktop berbasis Python yang dapat **mengambil data berita secara otomatis** dari sebuah website berita. User cukup memasukkan 1 URL, aplikasi akan mengambil semua artikel beserta isinya dan menampilkan hasilnya dalam tabel yang rapi.
+Aplikasi desktop berbasis Python yang dapat **mengambil data berita secara otomatis** dari sebuah website berita Indonesia. User cukup memasukkan 1 URL, aplikasi akan mengambil semua artikel beserta isinya dan menampilkan hasilnya dalam tabel yang rapi.
+
+**Stack:** Python 3.12, Selenium, PyQt5 ≥ 5.15, pandas, openpyxl, webdriver-manager
+**Browser:** Google Chrome 145 (headless mode)
 
 ---
 
@@ -25,39 +27,38 @@ Aplikasi desktop berbasis Python yang dapat **mengambil data berita secara otoma
 
 ```
 STEP 1: User buka aplikasi
-        → Muncul window dengan form input
+        → Muncul window dark theme (#0F1117 bg) dengan form input
 
 STEP 2: User isi form
         → Masukkan URL homepage/kategori berita
         → (Opsional) Pilih rentang tanggal: start date – end date
-        → (Opsional) Set limit jumlah berita, contoh: 50 artikel
+        → (Opsional) Set limit jumlah berita (1–500, default 20)
 
-STEP 3: User klik tombol "Mulai Scraping"
-        → Validasi input dulu (URL kosong? format salah? tanggal valid?)
-        → Progress bar mulai bergerak
-        → GUI tetap responsif, tidak freeze
+STEP 3: User klik tombol "▶  Mulai Scraping"
+        → Validasi input (URL kosong? format salah? tanggal valid?)
+        → Progress bar gradient biru→teal mulai bergerak
+        → GUI tetap responsif (QThread), bottom bar "SCRAPING AKTIF"
 
-STEP 4: Di balik layar — Selenium bekerja
-        4a. Buka URL yang diinput user
-            → Scan halaman, kumpulkan semua link artikel
-            → Kalau ada tombol "Next / Halaman 2" → ikuti juga (pagination)
-        4b. Buka satu per satu link artikel
-            → Ambil field WAJIB: Judul, Tanggal, Isi
-            → Ambil field BONUS: Penulis, Kategori, URL, Gambar (nilai tambah)
-            → Cek is_artikel_valid() → skip kalau judul/isi kosong
-            → Tunggu sebentar (delay) sebelum buka artikel berikutnya
-        4c. Filter data (kalau user set tanggal)
-            → Buang artikel di luar rentang tanggal
-            → Artikel tanggal tidak dikenali → ikuti config.FILTER_INCLUDE_UNKNOWN_DATE
+STEP 4: Di balik layar — Selenium bekerja (3-layer extraction)
+        4a. Buka URL → kumpulkan link artikel (same-domain, path_depth≥3)
+            → filter 20+ NON_ARTIKEL keywords
+            → Kalau ada pagination → ikuti (4 strategi)
+        4b. Buka satu per satu link artikel → 3-layer extraction:
+            → L1: OpenGraph + Schema.org meta tags (UNIVERSAL)
+            → L2: wildcard [class*='...'] + semantic HTML5 (SEMI-UMUM)
+            → L3: class spesifik Detik/Kompas/CNN (OPTIMASI)
+        4c. Validasi: is_artikel_valid() — judul≥15ch, isi≥100ch
+        4d. Filter tanggal (jika aktif) — parse multi-format ID/EN
+        4e. Delay 1.5 detik antar request
 
-STEP 5: Hasil muncul di tabel GUI
-        → 7 Kolom: No | Judul | Tanggal | Penulis | Kategori | URL | Gambar
+STEP 5: Hasil muncul di tabel GUI secara real-time
+        → 7 Kolom: #, Judul, Tanggal, Penulis, Kategori, Isi (preview 150ch), URL
+        → Double-click baris → dialog detail: gambar asli + isi 2000ch + meta
         → Progress bar penuh = selesai ✅
-        → Hanya artikel VALID yang ditampilkan
 
 STEP 6: User klik "Export"
-        → Pilih format: CSV atau Excel (.xlsx)
-        → File tersimpan di komputer user
+        → Export CSV atau Excel (.xlsx)
+        → File tersimpan di folder output/
 ```
 
 ---
@@ -68,27 +69,37 @@ STEP 6: User klik "Export"
 main.py
   │
   ├── config.py          ← pengaturan global (Kemal)
+  │     MAX_ISI_CHARS=2000, MIN_JUDUL=15, MIN_ISI=100
+  │     CSV_ENCODING, EXCEL_ENGINE, LOG_FORMAT, LOG_LEVEL
   │
   ├── gui.py             ← tampilan aplikasi
-  │     ├── [Richard]    Main window, tabel, progress bar, tombol
-  │     └── [Kyla]       Input URL, limit, date picker, validasi
+  │     ├── [Kyla]       InputPanel: URL, limit, date picker, validasi
+  │     └── [Richard]    MainWindow: tabel 7 kolom, progress bar, tombol,
+  │                      bottom bar, dialog detail double-click
   │
-  ├── style.py           ← stylesheet visual (Aulia)
+  ├── style.py           ← Dark theme QSS (Aulia)
+  │     #0F1117 bg, #4F8EF7 accent, #00D4AA teal, #F75A5A danger
   │
-  ├── worker.py          ← QThread: jembatan GUI ↔ scraper (Darva)
+  ├── worker.py          ← QThread: 5 sinyal GUI ↔ scraper (Darva)
+  │     sinyal_progress, sinyal_hasil, sinyal_selesai, sinyal_error, sinyal_status
   │
-  ├── scraper.py         ← otak scraping (Darva)
-  │     ├── Selenium setup (headless)
-  │     ├── get_all_links(url)      → kumpulkan semua link artikel
-  │     ├── handle_pagination()     → ikuti halaman berikutnya
-  │     ├── scrape_article(url)     → ekstrak data 1 artikel
-  │     └── is_artikel_valid()      → cek data tidak kosong ✅
+  ├── scraper.py         ← otak scraping — 3-layer extraction (Darva)
+  │     ├── setup_driver()          headless Chrome + eager + anti-bot
+  │     ├── get_all_links()         same-domain, path_depth≥3, 20+ NON_ARTIKEL kw
+  │     ├── handle_pagination()     4 strategi (rel=next, teks, URL, berhenti)
+  │     ├── scrape_article()        3-layer: OG/Schema → wildcard → site-specific
+  │     ├── is_artikel_valid()      threshold dari config
+  │     ├── _extract_text()         helper CSS/XPath selector
+  │     └── _extract_meta()         helper OpenGraph/Schema.org/itemprop
   │
-  ├── filter.py          ← filter artikel by tanggal (Darva)
+  ├── filter.py          ← filter tanggal multi-format ID/EN (Darva)
+  │     parse_tanggal(), filter_by_date()
   │
   ├── exporter.py        ← export CSV & Excel (Kemal)
+  │     export_csv(), export_excel()
   │
-  └── logger.py          ← logging & error handling (Kemal)
+  └── logger.py          ← logging file + console (Kemal)
+        setup_logger(), log_info(), log_error(), log_warning()
 ```
 
 ---
@@ -97,27 +108,32 @@ main.py
 
 ```
 news-scraper/
-├── main.py
-├── scraper.py
-├── worker.py
-├── filter.py
-├── gui.py
-├── style.py
-├── exporter.py
-├── logger.py
-├── config.py
-├── requirements.txt          ← runtime saja (untuk submit ke dosen)
-├── requirements-dev.txt      ← dev tools: pyqt5-tools (JANGAN ikut submit)
+├── main.py                   ← entry point
+├── config.py                 ← konstanta global
+├── scraper.py                ← logika scraping 3-layer
+├── worker.py                 ← QThread bridge
+├── filter.py                 ← filter tanggal
+├── gui.py                    ← InputPanel + MainWindow
+├── style.py                  ← dark theme QSS
+├── exporter.py               ← export CSV & Excel
+├── logger.py                 ← logging
+├── requirements.txt          ← runtime (untuk submit)
+├── requirements-dev.txt      ← dev tools
+├── test_scraper_cli.py       ← test CLI
+├── test_results.txt          ← hasil test
+├── gui-mockup (1).html       ← mockup desain
 ├── README.md
-├── .gitignore
+├── TekproWebScraping.iml
 ├── output/
-│   └── .gitkeep
+│   └── hasil_scraping.csv
 ├── logs/
-│   └── .gitkeep
 └── docs/
-    ├── laporan.pdf
     ├── AI_CONTEXT.md
-    ├── AI_CONTEXT_SHORT.md
+    ├── BLUEPRINT_NEWS_SCRAPER.md
+    ├── COMMIT_GUIDE.md
+    ├── PROMPT_GUIDE.md
+    ├── TESTING_CHECKLIST.md
+    ├── laporan.md
     └── screenshots/
 ```
 
@@ -125,54 +141,42 @@ news-scraper/
 
 ## 🗂️ Struktur Data Artikel (KESEPAKATAN TIM)
 
-> ⚠️ **WAJIB DIPATUHI SEMUA ANGGOTA — jangan ubah nama field atau tipe data!**
-
 ```python
 artikel = {
-    # ── FIELD WAJIB (minimum spesifikasi dosen) ──────────────
+    # ── FIELD WAJIB ──────────────────────────────────────────
     "judul"     : str,   # Judul artikel
-    "tanggal"   : str,   # Apa adanya dari website (JANGAN diubah formatnya)
-    "isi"       : str,   # Maksimal 500 karakter pertama
+    "tanggal"   : str,   # Apa adanya dari website
+    "isi"       : str,   # Maksimal 2000 karakter pertama
 
-    # ── FIELD BONUS (nilai tambah, boleh "-" kalau tidak ada) ─
-    "url"       : str,   # Full URL artikel (https://...)
+    # ── FIELD BONUS ──────────────────────────────────────────
+    "url"       : str,   # Full URL (https://...)
     "penulis"   : str,   # Nama penulis → "-" kalau tidak ada
-    "kategori"  : str,   # Kategori berita → "-" kalau tidak ada
+    "kategori"  : str,   # Kategori → "-" kalau tidak ada
     "gambar_url": str,   # URL gambar utama → "-" kalau tidak ada
 }
 ```
 
 ### Aturan Wajib:
 - ✅ Field tidak ditemukan → isi `"-"` (BUKAN `None`, BUKAN `""`)
-- ✅ Isi artikel → maksimal **500 karakter** pertama
+- ✅ Isi artikel → maksimal **2000 karakter** (cukup 3-5 paragraf)
 - ✅ Tanggal → simpan **apa adanya** dari website
-- ✅ URL → selalu **full URL** (`https://...`), bukan relative (`/berita/...`)
+- ✅ URL → selalu **full URL** (`https://...`)
 - ✅ Semua value bertipe **STRING**
-- ✅ Error di field BONUS jangan crash — selalu try-except, fallback ke `"-"`
+- ✅ Error di field BONUS → `"-"`, selalu try-except
 
-### Validasi Data — is_artikel_valid() (WAJIB):
-
-> Threshold **wajib diambil dari config.py**, jangan hardcode angkanya langsung di sini!
+### Validasi Data — is_artikel_valid():
 
 ```python
-# Di scraper.py — import threshold dari config:
-from config import MIN_JUDUL_CHARS, MIN_ISI_CHARS
-
 def is_artikel_valid(artikel: dict) -> bool:
-    """
-    Spesifikasi dosen: "Data yang diambil harus valid dan tidak kosong"
-    Hanya cek field WAJIB. Field bonus tidak dicek karena boleh "-".
-    Threshold dikonfigurasi di config.py supaya mudah diubah tanpa edit kode.
-    """
     return (
-        artikel["judul"] not in ("-", "") and
-        len(artikel["judul"]) >= MIN_JUDUL_CHARS and
-        artikel["isi"] not in ("-", "") and
-        len(artikel["isi"]) >= MIN_ISI_CHARS
+        artikel["judul"] not in (config.FIELD_KOSONG, "") and
+        len(artikel["judul"]) >= config.MIN_JUDUL_CHARS and    # 15
+        artikel["isi"] not in (config.FIELD_KOSONG, "") and
+        len(artikel["isi"]) >= config.MIN_ISI_CHARS             # 100
     )
 ```
 
-### Header CSV/Excel (urutan wajib sama):
+### Header CSV/Excel:
 ```
 No, Judul, Tanggal, Penulis, Kategori, Isi, URL, Gambar_URL
 ```
@@ -183,129 +187,215 @@ No, Judul, Tanggal, Penulis, Kategori, Isi, URL, Gambar_URL
 
 ### 🔴 Darva — scraper.py, worker.py, filter.py, main.py
 
-**scraper.py:**
+**scraper.py — 3-Layer Extraction Strategy:**
 ```python
-- setup_driver()              → Selenium headless + anti-bot headers
-                                ⚠️ Linux: tambahkan --no-sandbox & --disable-dev-shm-usage
-- get_all_links(url, limit)   → ambil semua link artikel dari halaman
-- handle_pagination()         → deteksi & ikuti halaman berikutnya (lihat strategi bawah)
-- scrape_article(url)         → ekstrak semua field dari 1 artikel
-- is_artikel_valid(artikel)   → validasi field wajib, threshold dari config ✅
-- _extract_text(driver, selectors, default="-")  → helper: coba selector satu per satu
+setup_driver()              # Chrome headless + eager + anti-bot + Linux flags
+get_all_links(url, limit)   # same-domain filter, path_depth≥3, 20+ NON_ARTIKEL keywords
+handle_pagination()         # 4 strategi: rel=next → teks tombol → URL pattern → berhenti
+scrape_article(url)         # 3-layer extraction per field
+is_artikel_valid(artikel)   # threshold dari config (MIN_JUDUL=15, MIN_ISI=100)
+_extract_text(selectors)    # helper: coba CSS/XPath satu per satu
+_extract_meta(names)        # helper: OpenGraph + Schema.org + itemprop
 ```
 
-**Strategi handle_pagination() — urutan prioritas:**
+**worker.py — ScraperWorker(QThread):**
 ```python
-# 1. Cari: <a rel="next"> atau <link rel="next">
-# 2. Cari teks tombol: "Next", "Selanjutnya", "›", "»", "Berikutnya"
-# 3. Cari pola URL: ?page=2, ?p=2, /page/2, /halaman/2
-# 4. Tidak ketemu → berhenti (sudah halaman terakhir)
-# JANGAN hardcode class/id spesifik per website!
+sinyal_progress = pyqtSignal(int)
+sinyal_hasil    = pyqtSignal(dict)
+sinyal_selesai  = pyqtSignal(int)
+sinyal_error    = pyqtSignal(str)
+sinyal_status   = pyqtSignal(str)
+
+__init__(url, limit, filter_aktif, start_date, end_date)
+run()   # setup_driver → get_all_links → loop scrape_article → filter → emit
+stop()  # self._running = False (graceful stop)
 ```
 
-**worker.py:**
+**filter.py — Multi-format Date Parsing:**
 ```python
-- class ScraperWorker(QThread)
-- sinyal_progress = pyqtSignal(int)
-- sinyal_hasil    = pyqtSignal(dict)
-- sinyal_selesai  = pyqtSignal(int)
-- sinyal_error    = pyqtSignal(str)
-- sinyal_status   = pyqtSignal(str)
-- def run(self) → scraping di background, skip jika not is_artikel_valid()
-- ⚠️ Simpan worker di self.worker (BUKAN variabel lokal — bisa kena garbage collect!)
-```
+parse_tanggal(tanggal_str)
+  # Support: ISO "2025-03-04", DD/MM/YYYY, "04 Mar 2025", "4 Maret 2025"
+  # + BULAN_INDONESIA mapping (Januari–Desember + singkatan)
 
-**[OPSIONAL — bonus nilai] Multi-threading di worker.py:**
-```python
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-with ThreadPoolExecutor(max_workers=3) as executor:
-    futures = {executor.submit(scrape_article, driver, link): link
-               for link in links}
-    for i, future in enumerate(as_completed(futures)):
-        artikel = future.result()
-        if is_artikel_valid(artikel):
-            self.sinyal_hasil.emit(artikel)
-        self.sinyal_progress.emit(int((i + 1) / len(links) * 100))
-# max_workers=3 supaya tidak membebani server
-```
-
-**filter.py:**
-```python
-- parse_tanggal(tanggal_str)
-    → datetime.date jika berhasil, None jika format tidak dikenali
-    → Support: "04 Mar 2025", "4 Maret 2025", "2025-03-04", "04/03/2025"
-
-- filter_by_date(articles, start_date, end_date)
-    → Artikel dalam range → masuk hasil
-    → Artikel di luar range → dibuang
-    → Artikel tanggal tidak dikenali → ikuti config.FILTER_INCLUDE_UNKNOWN_DATE
+filter_by_date(articles, start_date, end_date)
+  # Dalam range → masuk | Luar range → buang
+  # Tanggal tidak dikenali → ikuti FILTER_INCLUDE_UNKNOWN_DATE
 ```
 
 **main.py:**
 ```python
-- Buat folder output/ dan logs/ otomatis (os.makedirs exist_ok=True)
-- Inisialisasi QApplication → apply_style(app) → buka MainWindow
+buat_folder_wajib()   # OUTPUT_DIR + LOG_FILE.parent mkdir
+main()                # QApplication → apply_style → MainWindow → app.exec_()
 ```
 
 ---
 
 ### 🟠 Kemal — config.py, exporter.py, logger.py
 
-**config.py — HARUS SELESAI HARI 1, semua orang butuh ini!**
-
-> ⚠️ Wajib pakai `pathlib.Path` untuk path file supaya kompatibel Windows/Mac/Linux!
-
+**config.py — Pengaturan Global:**
 ```python
-from pathlib import Path   # ← WAJIB! String path bisa error di OS lain
-
 # Selenium
-HEADLESS        = True
-USER_AGENT      = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)..."
-PAGE_LOAD_WAIT  = 10
+HEADLESS=True, USER_AGENT, PAGE_LOAD_WAIT=10
 
 # Scraping
-DEFAULT_DELAY   = 1.5
-DEFAULT_LIMIT   = 20
-MAX_ISI_CHARS   = 500
-FIELD_KOSONG    = "-"
+DEFAULT_DELAY=1.5, DEFAULT_LIMIT=20, MAX_ISI_CHARS=2000, FIELD_KOSONG="-"
+MIN_JUDUL_CHARS=15, MIN_ISI_CHARS=100
 
-# Validasi artikel — dipakai is_artikel_valid() di scraper.py
-MIN_JUDUL_CHARS = 5      # judul minimal N karakter
-MIN_ISI_CHARS   = 20     # isi minimal N karakter
+# Filter
+FILTER_INCLUDE_UNKNOWN_DATE=True
 
-# Filter tanggal
-FILTER_INCLUDE_UNKNOWN_DATE = True
-# True  = artikel dengan tanggal tidak dikenal TETAP tampil saat filter aktif
-# False = artikel dengan tanggal tidak dikenal DIBUANG saat filter aktif
-
-# Path output — pathlib otomatis handle \ vs / antar OS
-OUTPUT_DIR = Path("output")
-LOG_FILE   = Path("logs") / "scraper.log"
+# Path (pathlib)
+OUTPUT_DIR=Path("output"), LOG_FILE=Path("logs")/"scraper.log"
 
 # GUI
-APP_TITLE   = "News Scraper App"
-WINDOW_W    = 1200
-WINDOW_H    = 700
-CSV_HEADERS = ["No","Judul","Tanggal","Penulis","Kategori","Isi","URL","Gambar_URL"]
+APP_TITLE, WINDOW_W=1200, WINDOW_H=700
+
+# Format
+CSV_ENCODING="utf-8-sig", EXCEL_ENGINE="openpyxl"
+LOG_FORMAT="%(asctime)s - %(levelname)s - %(message)s", LOG_LEVEL="DEBUG"
+CSV_HEADERS=[...]
 ```
 
 **exporter.py:**
 ```python
-- export_csv(data, filename)    → simpan ke .csv (encoding utf-8-sig)
-- export_excel(data, filename)  → simpan ke .xlsx (auto-width kolom)
+export_csv(data, filename)    # pandas → CSV, encoding utf-8-sig, rename kolom
+export_excel(data, filename)  # pandas + openpyxl → .xlsx, auto-width kolom
 ```
 
 **logger.py:**
 ```python
-- setup_logger()       → logging ke file + terminal, dengan timestamp
-- log_info(message)
-- log_error(message)
-- log_warning(message)
+setup_logger()     # FileHandler + StreamHandler, format dari config
+log_info(message)
+log_error(message)
+log_warning(message)
 ```
 
-**requirements.txt** ← runtime, ini yang dikumpulkan ke dosen:
+---
+
+### 🔵 Richard — gui.py (MainWindow)
+
+```python
+class MainWindow(QMainWindow):
+    KOLOM_TABEL = ["#", "Judul", "Tanggal", "Penulis", "Kategori", "Isi (preview)", "URL"]
+
+    # Widget utama:
+    self.input_panel     # InputPanel
+    self.tabel           # QTableWidget 7 kolom, alternating rows
+    self.progress_bar    # QProgressBar (gradient biru→teal)
+    self.btn_scrape      # "▶  Mulai Scraping"
+    self.btn_stop        # "■  Stop" (objectName: btn_stop)
+    self.btn_export_csv  # "↓  Export CSV" (objectName: btn_export_csv)
+    self.btn_export_xl   # "↓  Export Excel" (objectName: btn_export_xl)
+    self.label_status    # Teks status real-time
+    self.label_jumlah    # Counter artikel
+
+    # Bottom status bar:
+    self.label_dot       # "●" — idle (#6B7699) / aktif (#00D4AA)
+    self.label_state     # "SIAP" / "SCRAPING AKTIF"
+    self.label_delay     # "DELAY: 1.5s"
+    self.label_headless  # "HEADLESS: ON"
+    self.label_logfile   # "logs/scraper.log"
+
+    # Methods:
+    _setup_ui()          # susun layout lengkap
+    _connect_signals()   # btn → slot + cellDoubleClicked → _lihat_detail
+    _set_state_idle()    # enable/disable tombol
+    _set_state_scraping()
+    mulai_scraping()     # validate → reset → buat worker → start
+    stop_scraping()      # worker.stop()
+    tambah_baris(artikel)# tambah baris, isi preview 150ch
+    update_progress(int)
+    scraping_selesai(int)
+    tampilkan_error(str)
+    _lihat_detail(row,col)  # QDialog: gambar (QPixmap/urllib) + isi 2000ch + meta
+    export_csv()
+    export_excel()
 ```
+
+---
+
+### 🟣 Kyla — gui.py (InputPanel)
+
+```python
+class InputPanel(QWidget):
+    self.input_url       # QLineEdit — placeholder, clearButtonEnabled, minH 32
+    self.input_limit     # QSpinBox — range 1-500, default 20, suffix " artikel"
+    self.checkbox_filter # QCheckBox "Filter Tanggal"
+    self.date_start      # QDateEdit — calendarPopup, format dd/MM/yyyy
+    self.date_end        # QDateEdit — calendarPopup, format dd/MM/yyyy
+
+    # Methods:
+    _setup_ui()           # layout: URL row, limit row, checkbox, date range row
+    get_inputs()          # → dict {url, limit, filter_aktif, start_date(QDate|None), end_date}
+    validate()            # → bool + QMessageBox jika error
+    _toggle_date_filter() # enable/disable date picker
+```
+
+---
+
+### 🟢 Aulia — style.py, docs, README
+
+**style.py — Dark Theme QSS:**
+```python
+MAIN_STYLESHEET = """..."""
+# Palette: bg #0F1117, surface #181C27, surface2 #1E2333
+#          border #2A3147, accent #4F8EF7, teal #00D4AA
+#          danger #F75A5A, text #E8EAF0, muted #6B7699
+# Komponen: QMainWindow, QLabel, InputPanel, QLineEdit, QSpinBox, QDateEdit,
+#           QCheckBox, QPushButton (4 varian), QTableWidget, QProgressBar,
+#           bottom_bar, QMessageBox, QDialog, QTextBrowser
+
+apply_style(app)  # dipanggil di main.py sebelum MainWindow
+```
+
+---
+
+## 💻 Kolaborasi Beda OS
+
+### Perbedaan perintah:
+| Aksi | Windows | Mac / Linux |
+|------|---------|-------------|
+| Jalankan Python | `python main.py` | `python3 main.py` |
+| Install library | `pip install` | `pip3 install` |
+| Path separator | `\` | `/` |
+
+### Kode kompatibel semua OS:
+```python
+from pathlib import Path      # WAJIB
+OUTPUT_DIR = Path("output")
+LOG_FILE   = Path("logs") / "scraper.log"
+```
+
+### Selenium Linux flags:
+```python
+options.add_argument("--no-sandbox")
+options.add_argument("--disable-dev-shm-usage")
+```
+
+---
+
+## ⚙️ Ketentuan Teknis
+
+| Ketentuan | Detail |
+|-----------|--------|
+| **Python versi** | 3.12 (system) |
+| **PyQt versi** | PyQt5 ≥ 5.15 — **BUKAN PyQt6!** |
+| **Browser** | Google Chrome 145 (headless) |
+| **Threading** | `QThread`, BUKAN `threading.Thread` |
+| **Delay** | 1.5 detik dari `config.DEFAULT_DELAY` |
+| **Headless** | `page_load_strategy = "eager"` |
+| **Extraction** | 3-layer: OG/Schema → wildcard → site-specific |
+| **Validasi** | MIN_JUDUL=15, MIN_ISI=100 dari config |
+| **Fallback** | `"-"`, JANGAN `None` atau crash |
+| **Path** | `pathlib.Path` wajib |
+| **Worker** | `self.worker`, bukan variabel lokal |
+
+---
+
+## 📦 Requirements
+
+```
+# requirements.txt — runtime
 selenium
 PyQt5>=5.15.0
 pandas
@@ -313,223 +403,36 @@ openpyxl
 webdriver-manager
 ```
 
-**requirements-dev.txt** ← development tools, JANGAN ikut dikumpulkan:
 ```
+# requirements-dev.txt — dev tools
 pyqt5-tools
 ```
 
 ---
 
-### 🔵 Richard — gui.py (bagian fungsional)
+## ✅ Status Fitur (Semua SELESAI)
 
-```python
-- QMainWindow setup
-- QTableWidget (7 kolom: No, Judul, Tanggal, Penulis, Kategori, URL, Gambar)
-- QProgressBar (0-100%)
-- QPushButton "Mulai Scraping"  → enabled saat idle
-- QPushButton "Stop"            → enabled HANYA saat scraping
-- QPushButton "Export CSV"      → enabled HANYA setelah ada data
-- QPushButton "Export Excel"    → enabled HANYA setelah ada data
-- label_status, label_jumlah
-- self.worker = ScraperWorker(...)  ← SIMPAN DI self, BUKAN variabel lokal!
-- self.data_hasil = []
-```
+### Wajib:
+- ✅ Python + PyQt GUI
+- ✅ 1 URL input + validasi
+- ✅ Ambil link + pagination
+- ✅ Scrape tiap artikel
+- ✅ Tampilkan di tabel (Judul + Tanggal + Isi)
 
----
+### Opsional:
+- ✅ Export CSV & Excel
+- ✅ Progress bar
+- ✅ Limit artikel
+- ✅ Logging
+- ✅ Filter tanggal
 
-### 🟣 Kyla — gui.py (bagian input & filter)
-
-```python
-- QLineEdit input_url       → input URL (placeholder: "https://...")
-- QSpinBox input_limit      → limit 1-500, default 20
-- QCheckBox checkbox_filter → toggle filter tanggal
-- QDateEdit date_start      → disabled kalau checkbox off
-- QDateEdit date_end        → disabled kalau checkbox off
-- Validasi:
-    → URL tidak boleh kosong
-    → URL harus dimulai http:// atau https://
-    → date_end tidak boleh sebelum date_start (kalau filter aktif)
-```
-
----
-
-### 🟢 Aulia — style.py, screenshot, PDF, requirements, README
-
-**style.py:**
-```python
-- MAIN_STYLESHEET = "..."   → string QSS styling lengkap
-- apply_style(app)          → dipanggil di main.py SEBELUM MainWindow dibuat
-```
-
-**Screenshot wajib (simpan di docs/screenshots/):**
-```
-SS 1 (WAJIB): Tampilan awal — window kosong sebelum scraping
-SS 2 (WAJIB): Saat scraping berjalan — progress bar aktif, data masuk
-SS 3 (WAJIB): Selesai — tabel penuh artikel
-SS 4 (bonus): Hasil export terbuka di Excel
-SS 5 (bonus): Filter tanggal aktif dengan hasil tersaring
-```
-
-**PDF laporan (maks 3 halaman):**
-```
-Hal 1: Info tim + deskripsi + daftar fitur
-Hal 2: Arsitektur + diagram modul + pembagian tim
-Hal 3: Alur scraping step-by-step + screenshot aplikasi
-```
-
----
-
-## 🌿 Struktur Branch GitHub
-
-> ⚠️ Format branch **SERAGAM: `dev/nama`** — SEMUA ANGGOTA wajib pakai ini!
-> Jangan pakai format lain (tanpa `dev/`, atau pakai nama lengkap, dsb).
-
-```
-main                 ← hanya Darva yang merge via Pull Request
-├── dev/darva
-├── dev/richard
-├── dev/kemal
-├── dev/kyla
-└── dev/aulia
-```
-
-### Cara buat branch — Darva lakukan ini di hari pertama untuk semua anggota:
-```bash
-git checkout main
-git checkout -b dev/darva   && git push origin dev/darva
-git checkout -b dev/kemal   && git push origin dev/kemal
-git checkout -b dev/richard && git push origin dev/richard
-git checkout -b dev/kyla    && git push origin dev/kyla
-git checkout -b dev/aulia   && git push origin dev/aulia
-```
-
-### Tiap anggota — alur kerja harian:
-```bash
-git checkout dev/namakamu        # pindah ke branch sendiri
-git pull origin main             # sync sebelum mulai coding!
-# ... coding ...
-git add .
-git commit -m "tipe(file): deskripsi singkat"
-git push origin dev/namakamu
-# → buat Pull Request ke main → assign ke Darva sebagai reviewer
-```
-
-### Target minimum commit:
-| Nama | Target |
-|------|--------|
-| Darva | 10–12 |
-| Kemal | 6–8 |
-| Richard | 6–8 |
-| Kyla | 5–6 |
-| Aulia | 5–6 |
-
----
-
-## 💻 Kolaborasi Beda OS dalam Tim
-
-> Tim mungkin pakai OS yang berbeda. Ikuti aturan ini supaya kode tidak konflik!
-
-### Perbedaan perintah antar OS:
-| Aksi | Windows | Mac / Linux |
-|------|---------|-------------|
-| Jalankan Python | `python main.py` | `python3 main.py` |
-| Install library | `pip install` | `pip3 install` |
-| Cek versi | `python --version` | `python3 --version` |
-| Path separator | `\` (backslash) | `/` (forward slash) |
-| Terminal | Command Prompt / PowerShell | Terminal |
-
-### Aturan kode supaya kompatibel semua OS:
-```python
-# ❌ JANGAN — backslash error di Mac/Linux, string "/" bisa beda antar OS
-OUTPUT_DIR = "output/"
-LOG_FILE   = "logs\\scraper.log"
-
-# ✅ WAJIB — pathlib otomatis pakai separator yang benar di tiap OS
-from pathlib import Path
-OUTPUT_DIR = Path("output")
-LOG_FILE   = Path("logs") / "scraper.log"
-```
-
-### Selenium di Linux — wajib tambahkan flag ini di setup_driver():
-```python
-options.add_argument("--no-sandbox")            # WAJIB di Linux
-options.add_argument("--disable-dev-shm-usage") # Cegah crash
-```
-
-### Status pyqt5-tools (Qt Designer) per OS:
-| OS | Status |
-|----|--------|
-| Windows | ✅ `pip install pyqt5-tools` langsung jalan |
-| Mac | ❌ Sering gagal — skip, desain GUI langsung di kode |
-| Linux | ❌ Pakai `sudo apt install qttools5-dev-tools` |
-
-> pyqt5-tools bukan keharusan. Bisa desain GUI langsung di kode Python tanpa Qt Designer.
-
-### .gitignore — pastikan file OS tidak ter-commit:
-```gitignore
-__pycache__/
-*.py[cod]
-output/
-logs/
-.env
-.vscode/
-.idea/
-.DS_Store      # Mac — wajib ada!
-Thumbs.db      # Windows
-```
-
----
-
-## 📅 Timeline Pengerjaan
-
-### HARI 1 — Rabu 5 Maret (Fondasi)
-
-| Siapa | Target |
-|-------|--------|
-| **Kemal** | ✅ `config.py` DULUAN — pakai pathlib, semua orang butuh ini! |
-| **Darva** | Setup repo + buat semua branch `dev/` + Selenium jalan headless |
-| **Richard** | `gui.py` skeleton — window muncul, tabel kosong |
-| **Kyla** | `gui.py` input panel — URL, limit, date picker |
-| **Kemal** | `logger.py` setelah config.py selesai |
-| **Aulia** | `style.py` dasar |
-
-### HARI 2 — Kamis 6 Maret (Fitur Utama)
-
-**Pagi:**
-| Siapa | Target |
-|-------|--------|
-| **Darva** | `scrape_article()` + `is_artikel_valid()` + delay + `worker.py` |
-| **Kemal** | `handle_pagination()` + `exporter.py` CSV |
-| **Richard** | Sambungkan progress bar ke sinyal worker |
-| **Kyla** | Validasi input + toggle date picker |
-| **Aulia** | Polish stylesheet sesuai komponen Richard & Kyla |
-
-**Malam — INTEGRASI PERTAMA:**
-```
-Darva + Richard → worker tersambung ke GUI
-                  test: klik Mulai → data valid muncul real-time di tabel ✅
-Darva + Kyla    → filter tanggal tersambung
-                  test: pilih tanggal → hasil tersaring ✅
-Kemal           → test export CSV dengan data real
-```
-
-### HARI 3 — Jumat 7 Maret (Polish & Docs)
-
-**Pagi:**
-| Siapa | Target |
-|-------|--------|
-| **Darva** | `filter.py` final + review semua PR + `main.py` final |
-| **Richard** | Bug fix dari hasil testing integrasi |
-| **Kemal** | Export Excel + test 3 website + cek anti-hardcode |
-| **Kyla** | Edge case validasi |
-| **Aulia** | Final stylesheet + ambil screenshot |
-
-**Siang:**
-| Siapa | Target |
-|-------|--------|
-| **Aulia** | Finalisasi PDF + `README.md` + `requirements.txt` |
-| **Darva** | Final merge semua branch ke main |
-| **Semua** | Cek jumlah commit, pastikan repo public |
+### Bonus:
+- ✅ 3-layer extraction strategy
+- ✅ Dialog detail double-click (gambar + isi 2000ch)
+- ✅ Bottom status bar
+- ✅ Dark theme sesuai gui-mockup.html
+- ✅ Test CLI — lulus 3 website: CNN, Detik, Kompas
+- ✅ get_all_links: same-domain, path_depth≥3, 20+ NON_ARTIKEL keywords
 
 ---
 
@@ -538,98 +441,15 @@ Kemal           → test export CSV dengan data real
 ```
 config.py (Kemal) ← HARUS SELESAI DULUAN (pakai pathlib!)
     │
-    ├──► scraper.py (Darva)
-    │    ├── MIN_JUDUL_CHARS, MIN_ISI_CHARS → is_artikel_valid()
-    │    └──► worker.py (Darva) ──► Integrasi GUI
+    ├──► scraper.py (Darva) — MIN_JUDUL, MIN_ISI, FIELD_KOSONG, MAX_ISI_CHARS
+    │    └──► worker.py (Darva) ──► filter.py → Integrasi GUI
     │
-    ├──► logger.py → exporter.py (Kemal)
+    ├──► logger.py → exporter.py (Kemal) — LOG_FORMAT, CSV_ENCODING, CSV_HEADERS
     │
-    ├──► filter.py (Darva) — FILTER_INCLUDE_UNKNOWN_DATE
-    │
-    ├──► gui.py Richard (main window + tabel)
-    └──► gui.py Kyla (input + filter) → filter.py
+    ├──► gui.py Richard (MainWindow) — APP_TITLE, WINDOW_W/H, DEFAULT_DELAY, HEADLESS
+    └──► gui.py Kyla (InputPanel) — DEFAULT_LIMIT
 ```
 
 ---
 
-## ⚙️ Ketentuan Teknis Penting
-
-| Ketentuan | Detail |
-|-----------|--------|
-| **PyQt versi** | PyQt5 ≥ 5.15 — **BUKAN PyQt6!** |
-| **Threading** | `QThread`, BUKAN `threading.Thread` biasa |
-| **Delay** | 1.5 detik antar request dari `config.DEFAULT_DELAY` |
-| **Headless** | Chrome tanpa tampilan jendela |
-| **General** | Selector umum: `h1`, `article`, `time` — jangan hardcode nama website |
-| **Validasi** | `is_artikel_valid()` wajib, threshold dari `config.py` |
-| **Fallback** | Field tidak ada → `"-"`, jangan crash |
-| **Path file** | Wajib `pathlib.Path` — kompatibel Windows/Mac/Linux |
-| **Worker** | Simpan di `self.worker`, bukan variabel lokal (anti garbage collect) |
-
----
-
-## 📦 Requirements
-
-```
-# requirements.txt — runtime, ini yang dikumpulkan ke dosen
-selenium
-PyQt5>=5.15.0
-pandas
-openpyxl
-webdriver-manager
-
-# requirements-dev.txt — development tools, JANGAN ikut dikumpulkan
-pyqt5-tools       ← Windows saja; Mac/Linux lihat OS_GUIDE.md
-```
-
-```bash
-# Install runtime (semua OS):
-pip install -r requirements.txt      # Windows
-pip3 install -r requirements.txt     # Mac / Linux
-```
-
----
-
-## 📤 Output yang Dikumpulkan
-
-- [ ] Link GitHub — repo **PUBLIC**, semua branch di-merge ke `main`
-- [ ] Screenshot minimal 3 — ada di `docs/screenshots/`
-- [ ] PDF laporan — **maks 3 halaman**
-
----
-
-## ❓ FAQ Tim
-
-**Q: Harus bisa scraping semua website di dunia?**
-> Tidak. Cukup jalan di 3-5 website berita Indonesia yang strukturnya mirip.
-
-**Q: Pagination itu apa?**
-> Tombol "1 2 3 Next »" di bawah daftar berita. Program harus bisa klik & lanjut.
-
-**Q: Kenapa harus delay?**
-> Kalau buka 100 halaman sekaligus tanpa jeda, server website bisa ban IP kita.
-
-**Q: Hardcode itu apa contohnya?**
-> `if "detik.com" in url` atau `driver.find_element(By.CLASS_NAME, "detail__title")`. Harus dihindari — pakai selector generik.
-
-**Q: Kenapa ada is_artikel_valid()?**
-> Dosen: "data yang diambil harus valid dan tidak kosong". Threshold-nya ada di config.py supaya bisa diubah tanpa edit kode scraper.
-
-**Q: Kenapa MIN_JUDUL_CHARS ada di config.py, bukan langsung di scraper.py?**
-> Supaya bisa diubah tanpa edit kode. Kalau dosen tanya "kenapa 5 karakter?" — jawab: "bisa dikonfigurasi di config.py sesuai kebutuhan."
-
-**Q: FILTER_INCLUDE_UNKNOWN_DATE itu apa?**
-> Kalau tanggal artikel tidak bisa dibaca, apakah tetap tampil (True) atau dibuang (False) saat filter aktif. Default True supaya data tidak hilang tanpa sebab.
-
-**Q: Bedanya requirements.txt dan requirements-dev.txt?**
-> `requirements.txt` = library untuk menjalankan app (dikumpulkan ke dosen). `requirements-dev.txt` = tools development yang tidak dibutuhkan dosen saat testing.
-
-**Q: Qt Designer tidak bisa install di Mac/Linux?**
-> Benar. pyqt5-tools sering gagal di Mac/Linux. Alternatif: desain GUI langsung di kode, atau install Qt Designer standalone (`brew install qt` / `apt install qttools5-dev-tools`).
-
-**Q: Kenapa harus pakai pathlib bukan string path biasa?**
-> String `"logs\\scraper.log"` error di Mac/Linux karena pakai backslash. `pathlib.Path("logs") / "scraper.log"` otomatis pakai separator yang benar di semua OS.
-
----
-
-*Update jika ada perubahan kesepakatan → update juga AI_CONTEXT.md + AI_CONTEXT_SHORT.md → kabari semua anggota.*
+*Update jika ada perubahan kesepakatan → update juga AI_CONTEXT.md → kabari semua anggota.*
