@@ -95,6 +95,8 @@ class InputPanel(QWidget):
         layout.addLayout(limit_layout)
 
         # ─── Baris 3: Checkbox Filter Tanggal ────────────────────
+        self.checkbox_filter.setToolTip("Centang untuk mengaktifkan filter tanggal (artikel antara Dari dan Sampai)")
+        self.checkbox_filter.setChecked(False)  # Explicit default unchecked
         layout.addWidget(self.checkbox_filter)
 
         # ─── Baris 4: Date Range ────────────────────────────────
