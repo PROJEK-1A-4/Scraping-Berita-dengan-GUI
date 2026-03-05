@@ -54,6 +54,7 @@ def setup_driver() -> webdriver.Chrome:
         webdriver.Chrome: driver yang siap dipakai
     """
     options = Options()
+    options.page_load_strategy = "eager"  # berhenti tunggu saat DOM siap, abaikan resource lambat
 
     if config.HEADLESS:
         options.add_argument("--headless")
@@ -105,13 +106,72 @@ def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
     Returns:
         list[str]: daftar URL artikel (full URL, bukan relative)
     """
-    # TODO Darva: implementasikan pengumpulan link
-    # Hint:
-    #   - Buka url dengan driver.get(url)
-    #   - Cari semua <a> yang mengarah ke artikel (gunakan selector generik)
-    #   - Panggil handle_pagination() untuk lanjut ke halaman berikutnya
-    #   - Hentikan jika len(links) >= limit atau tidak ada halaman berikutnya
-    return []
+    from urllib.parse import urlparse, urljoin
+    from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+
+    links: list[str] = []
+    seen: set[str] = set()
+    base = "{u.scheme}://{u.netloc}".format(u=urlparse(url))
+
+    # Keyword yang menandakan URL bukan artikel
+    NON_ARTIKEL = ("search", "query=", "tag/", "/kirim", "/login",
+                   "/register", "/subscribe", "#", "javascript:")
+
+    try:
+        driver.get(url)
+    except TimeoutException:
+        pass
+
+    while len(links) < limit:
+        # Kumpulkan href sebagai plain string dulu — hindari StaleElementReferenceException
+        raw_hrefs: list[str] = []
+        for anchor in driver.find_elements(By.TAG_NAME, "a"):
+            try:
+                href = anchor.get_attribute("href") or ""
+                if href:
+                    raw_hrefs.append(href)
+            except StaleElementReferenceException:
+                continue
+
+        for href in raw_hrefs:
+            if len(links) >= limit:
+                break
+
+            # Jadikan full URL jika masih relative
+            if href.startswith("/"):
+                href = urljoin(base, href)
+
+            # Filter: hanya http/https
+            if not href.startswith("http"):
+                continue
+
+            # Buang URL yang mengandung keyword non-artikel
+            if any(kw in href for kw in NON_ARTIKEL):
+                continue
+
+            # Buang URL dengan ekstensi non-artikel
+            parsed = urlparse(href)
+            if parsed.path.lower().endswith((".jpg", ".png", ".gif", ".pdf", ".mp4")):
+                continue
+
+            # Hanya ambil URL dengan path minimal 2 level (/kategori/judul-artikel)
+            path_depth = len([p for p in parsed.path.split("/") if p])
+            if path_depth < 2:
+                continue
+
+            if href in seen:
+                continue
+
+            seen.add(href)
+            links.append(href)
+
+        # Lanjut ke halaman berikutnya jika belum mencapai limit
+        if len(links) < limit and handle_pagination(driver):
+            continue
+        else:
+            break
+
+    return links
 
 
 def handle_pagination(driver: webdriver.Chrome) -> bool:
@@ -150,10 +210,15 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
         - Gunakan try-except untuk setiap field bonus
         - Delay config.DEFAULT_DELAY detik setelah scraping
     """
+    from selenium.common.exceptions import TimeoutException
+
     artikel = ARTIKEL_KOSONG.copy()
     artikel["url"] = url
 
-    driver.get(url)
+    try:
+        driver.get(url)
+    except TimeoutException:
+        pass  # DOM kemungkinan sudah siap, lanjutkan scraping
 
     artikel["judul"] = _extract_text(driver, [
         (By.TAG_NAME, "h1"),
