@@ -91,6 +91,7 @@ class ScraperWorker(QThread):
 
             if not links:
                 self.sinyal_error.emit("Tidak ada link artikel yang ditemukan.")
+                self.sinyal_selesai.emit(0)
                 return
 
             total = len(links)

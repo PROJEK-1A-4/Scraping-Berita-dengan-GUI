@@ -26,3 +26,6 @@ Thumbs.db       # Windows
 
 # Dev tools (jangan ikut dikumpulkan ke dosen)
 requirements-dev.txt
+
+# File testing lokal — jangan di-commit
+test_*.py

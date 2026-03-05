@@ -17,13 +17,13 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+# from selenium.webdriver.support.ui import WebDriverWait      # reserved — untuk explicit wait jika dibutuhkan
+# from selenium.webdriver.support import expected_conditions as EC  # reserved — pasangan WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
 import config
-import logger
+# import logger  # reserved — aktifkan setelah logger.py (Kemal) selesai
 
 
 # ─── Kesepakatan tim: struktur data artikel ───────────────────
