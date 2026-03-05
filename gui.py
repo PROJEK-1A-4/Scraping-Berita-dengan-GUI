@@ -144,13 +144,14 @@ class InputPanel(QWidget):
                 "start_date"   : QDate (atau None jika filter off)
                 "end_date"     : QDate (atau None jika filter off)
         """
-        # TODO Kyla: return nilai dari setiap widget
+        filter_aktif = self.checkbox_filter.isChecked()
+        
         return {
-            "url"          : "",
-            "limit"        : config.DEFAULT_LIMIT,
-            "filter_aktif" : False,
-            "start_date"   : None,
-            "end_date"     : None,
+            "url"          : self.input_url.text().strip(),
+            "limit"        : self.input_limit.value(),
+            "filter_aktif" : filter_aktif,
+            "start_date"   : self.date_start.date() if filter_aktif else None,
+            "end_date"     : self.date_end.date() if filter_aktif else None,
         }
 
     def validate(self) -> bool:
