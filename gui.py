@@ -15,14 +15,80 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QTableWidget, QTableWidgetItem,
     QProgressBar, QSpinBox, QCheckBox, QDateEdit, QMessageBox,
-    QHeaderView, QSizePolicy
+    QHeaderView, QSizePolicy, QDialog, QTextBrowser,
+    QMenuBar, QMenu, QAction, QFormLayout, QDoubleSpinBox, QGroupBox,
+    QGridLayout, QFrame
 )
-from PyQt5.QtCore import Qt, QDate
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt, QDate, QLocale
+from PyQt5.QtGui import QFont, QPixmap, QIcon
 
 import config
 import worker as worker_module
 import exporter
+
+# ── Mapping bulan Indonesia untuk format tanggal ──────────────
+_BULAN_ID = {
+    1: "Januari", 2: "Februari", 3: "Maret", 4: "April",
+    5: "Mei", 6: "Juni", 7: "Juli", 8: "Agustus",
+    9: "September", 10: "Oktober", 11: "November", 12: "Desember",
+}
+
+def _format_tanggal(raw: str) -> str:
+    """
+    Konversi string tanggal mentah (ISO 8601 dsb.) ke format
+    'dd MMMM yyyy, HH:mm WIB' yang mudah dibaca.
+
+    Contoh:
+        '2026-03-05T21:00:42Z'       → '05 Maret 2026, 21:00 WIB'
+        '2026-03-05T21-00-42Z'       → '05 Maret 2026, 21:00 WIB'
+        '2026-03-05'                 → '05 Maret 2026'
+        'Rabu, 5 Mar 2026 10:30'     → tetap apa adanya (fallback)
+    """
+    if not raw or raw == config.FIELD_KOSONG:
+        return raw
+
+    from datetime import datetime, timezone, timedelta
+    import re
+
+    text = raw.strip()
+
+    # Normalisasi: ganti T21-00-42Z → T21:00:42Z (beberapa sumber pakai dash)
+    # Pattern: huruf T diikuti digit-digit-digit lalu Z atau offset
+    text = re.sub(
+        r'T(\d{2})-(\d{2})-(\d{2})(\.\d+)?(Z|[+\-]\d{2}:\d{2})?',
+        r'T\1:\2:\3\4\5',
+        text
+    )
+
+    # Coba parse berbagai format ISO umum
+    formats = [
+        "%Y-%m-%dT%H:%M:%SZ",           # 2026-03-05T21:00:42Z
+        "%Y-%m-%dT%H:%M:%S%z",          # 2026-03-05T21:00:42+07:00
+        "%Y-%m-%dT%H:%M:%S.%fZ",        # 2026-03-05T20:48:39.000Z
+        "%Y-%m-%dT%H:%M:%S.%f%z",       # 2026-03-05T20:48:39.000+07:00
+        "%Y-%m-%dT%H:%M:%S",            # 2026-03-05T21:00:42
+        "%Y/%m/%d %H:%M:%S",            # 2026/03/05 19:07:34 (CNN Indonesia)
+        "%Y-%m-%d %H:%M:%S",            # 2026-03-05 21:00:42
+        "%Y-%m-%d",                      # 2026-03-05
+        "%d %b %Y %I:%M%p",             # 03 Mar 2026 04:01pm (CNA)
+        "%d %b %Y %I:%M %p",            # 03 Mar 2026 04:01 pm
+        "%d %b %Y",                      # 03 Mar 2026
+    ]
+
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(text, fmt)
+            hari = f"{dt.day:02d}"
+            bulan = _BULAN_ID.get(dt.month, str(dt.month))
+            tahun = dt.year
+            if dt.hour or dt.minute:
+                return f"{hari} {bulan} {tahun}, {dt.hour:02d}:{dt.minute:02d} WIB"
+            return f"{hari} {bulan} {tahun}"
+        except ValueError:
+            continue
+
+    # Fallback: kembalikan apa adanya
+    return raw
 
 
 # ══════════════════════════════════════════════════════════════
@@ -86,11 +152,15 @@ class InputPanel(QWidget):
         label_limit.setFixedWidth(60)
         self.input_limit.setRange(1, 500)
         self.input_limit.setValue(config.DEFAULT_LIMIT)
-        self.input_limit.setSuffix(" artikel")  # Add suffix untuk clarity
-        self.input_limit.setMinimumHeight(32)   # Match URL input height
-        self.input_limit.setMinimumWidth(120)   # Cukup lebar untuk display
+        self.input_limit.setMinimumHeight(36)   # Sedikit lebih tinggi agar tombol terlihat
+        self.input_limit.setMinimumWidth(100)   # Cukup lebar untuk angka
+        self.input_limit.setAlignment(Qt.AlignCenter)  # Angka di tengah
+        self.input_limit.setButtonSymbols(QSpinBox.PlusMinus)  # Gunakan simbol +/−
+        label_artikel = QLabel("artikel")
+        label_artikel.setStyleSheet("color: #6B7699; font-size: 12px; padding-left: 4px;")
         limit_layout.addWidget(label_limit)
         limit_layout.addWidget(self.input_limit)
+        limit_layout.addWidget(label_artikel)
         limit_layout.addStretch()  # Push ke kiri
         layout.addLayout(limit_layout)
 
@@ -106,15 +176,18 @@ class InputPanel(QWidget):
         
         self.date_start.setDate(QDate.currentDate())
         self.date_start.setEnabled(False)
-        self.date_start.setDisplayFormat("dd/MM/yyyy")  # Readable format
+        self.date_start.setDisplayFormat("dd MMMM yyyy")  # Format lengkap: 05 Maret 2026
+        self.date_start.setLocale(QLocale(QLocale.Indonesian, QLocale.Indonesia))
         self.date_start.setCalendarPopup(True)  # Popup calendar saat diklik
         self.date_start.setMinimumHeight(32)  # Match other widgets
+        self.date_start.setMinimumWidth(180)  # Lebar cukup untuk nama bulan
         self.date_start.setToolTip("Pilih tanggal awal (Double-click atau klik icon kalender)")
 
         label_sampai = QLabel("Sampai:")
         self.date_end.setDate(QDate.currentDate())
         self.date_end.setEnabled(False)
-        self.date_end.setDisplayFormat("dd/MM/yyyy")  # Readable format
+        self.date_end.setDisplayFormat("dd MMMM yyyy")  # Format lengkap: 05 Maret 2026
+        self.date_end.setLocale(QLocale(QLocale.Indonesian, QLocale.Indonesia))
         self.date_end.setCalendarPopup(True)  # Popup calendar saat diklik
         self.date_end.setMinimumHeight(32)  # Match other widgets
         self.date_end.setToolTip("Pilih tanggal akhir (Double-click atau klik icon kalender)")
@@ -236,8 +309,10 @@ class MainWindow(QMainWindow):
     PENTING: Simpan worker di self.worker (BUKAN variabel lokal!)
     """
 
-    KOLOM_TABEL = ["No", "Judul", "Tanggal", "Penulis", "Kategori", "URL", "Gambar"]
-    # Kolom "Isi" tidak ditampilkan di tabel tapi tetap ada di self.data_hasil untuk ekspor
+    # Urutan kolom sesuai mockup: #, Judul, Tanggal, Penulis, Kategori, Isi (preview), URL
+    # Kolom Gambar dihapus dari tabel — gambar ditampilkan di dialog detail (double-click)
+    # CATATAN: Berbeda dengan CSV_HEADERS di config.py yang menyertakan kolom Gambar_URL untuk export
+    KOLOM_TABEL = ["#", "Judul", "Tanggal", "Penulis", "Kategori", "Isi (preview)", "URL"]
 
     def __init__(self):
 
@@ -251,16 +326,312 @@ class MainWindow(QMainWindow):
         self.input_panel    = InputPanel()
         self.tabel          = QTableWidget()
         self.progress_bar   = QProgressBar()
-        self.btn_scrape     = QPushButton("Mulai Scraping")
-        self.btn_stop       = QPushButton("Stop")
-        self.btn_export_csv = QPushButton("Export CSV")
-        self.btn_export_xl  = QPushButton("Export Excel")
-        self.label_status   = QLabel("Siap.")
+        self.btn_scrape     = QPushButton("▶  Mulai Scraping")
+        self.btn_stop       = QPushButton("■  Stop")
+        self.btn_export_csv = QPushButton("↓  Export CSV")
+        self.btn_export_xl  = QPushButton("↓  Export Excel")
+        self.label_status   = QLabel("Menampilkan 0 artikel")
         self.label_jumlah   = QLabel("0 artikel")
+        # Bottom status bar labels
+        self.label_dot      = QLabel("●")
+        self.label_state    = QLabel("SIAP")
+        self.label_delay    = QLabel(f"DELAY: {config.DEFAULT_DELAY}s")
+        self.label_headless = QLabel(f"HEADLESS: {'ON' if config.HEADLESS else 'OFF'}")
+        self.label_logfile  = QLabel(str(config.LOG_FILE))
+        # Set object names for per-button styling
+        self.btn_stop.setObjectName("btn_stop")
+        self.btn_export_csv.setObjectName("btn_export_csv")
+        self.btn_export_xl.setObjectName("btn_export_xl")
 
+        self._setup_menu_bar()
         self._setup_ui()
         self._connect_signals()
         self._set_state_idle()   # set initial button states
+
+    # ══════════════════════════════════════════════════════════
+    #  MENU BAR
+    # ══════════════════════════════════════════════════════════
+
+    def _setup_menu_bar(self) -> None:
+        """Buat menu bar: File, Pengaturan, Tentang."""
+        menubar = self.menuBar()
+        menubar.setObjectName("main_menubar")
+
+        # ─── Menu File ────────────────────────────────────────
+        menu_file = menubar.addMenu("File")
+
+        self.act_scrape = QAction("▶  Mulai Scraping", self)
+        self.act_scrape.setShortcut("Ctrl+R")
+        self.act_scrape.triggered.connect(lambda: self.mulai_scraping())
+        menu_file.addAction(self.act_scrape)
+
+        self.act_stop = QAction("■  Stop Scraping", self)
+        self.act_stop.setShortcut("Ctrl+Q")
+        self.act_stop.triggered.connect(lambda: self.stop_scraping())
+        menu_file.addAction(self.act_stop)
+
+        menu_file.addSeparator()
+
+        act_csv = QAction("↓  Export CSV", self)
+        act_csv.setShortcut("Ctrl+Shift+C")
+        act_csv.triggered.connect(lambda: self.export_csv())
+        menu_file.addAction(act_csv)
+
+        act_xl = QAction("↓  Export Excel", self)
+        act_xl.setShortcut("Ctrl+Shift+E")
+        act_xl.triggered.connect(lambda: self.export_excel())
+        menu_file.addAction(act_xl)
+
+        menu_file.addSeparator()
+
+        act_keluar = QAction("Keluar", self)
+        act_keluar.setShortcut("Ctrl+W")
+        act_keluar.triggered.connect(self.close)
+        menu_file.addAction(act_keluar)
+
+        # ─── Menu Pengaturan ──────────────────────────────────
+        menu_pengaturan = menubar.addMenu("Pengaturan")
+
+        act_setting = QAction("⚙  Konfigurasi Scraping", self)
+        act_setting.triggered.connect(self._buka_pengaturan)
+        menu_pengaturan.addAction(act_setting)
+
+        # ─── Menu Tentang ─────────────────────────────────────
+        menu_tentang = menubar.addMenu("Tentang")
+
+        act_about = QAction("ℹ  Tentang Aplikasi", self)
+        act_about.triggered.connect(self._buka_tentang)
+        menu_tentang.addAction(act_about)
+
+        act_tim = QAction("👥  Tim Pengembang", self)
+        act_tim.triggered.connect(self._buka_tim)
+        menu_tentang.addAction(act_tim)
+
+    def _buka_pengaturan(self) -> None:
+        """Buka dialog pengaturan scraping."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Konfigurasi Scraping")
+        dialog.setFixedSize(500, 340)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # ─── Judul ────────────────────────────────────────────
+        title = QLabel("⚙  Konfigurasi Scraping")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #E8EAF0; padding-bottom: 4px;")
+        layout.addWidget(title)
+
+        # ─── Form ─────────────────────────────────────────────
+        form = QFormLayout()
+        form.setSpacing(10)
+        form.setLabelAlignment(Qt.AlignRight)
+
+        # Delay
+        spin_delay = QDoubleSpinBox()
+        spin_delay.setRange(0.5, 10.0)
+        spin_delay.setSingleStep(0.5)
+        spin_delay.setValue(config.DEFAULT_DELAY)
+        spin_delay.setSuffix(" detik")
+        spin_delay.setDecimals(1)
+        label_delay = QLabel("Delay antar request:")
+        label_delay.setStyleSheet("color: #E8EAF0; font-size: 12px;")
+        form.addRow(label_delay, spin_delay)
+
+        # Headless
+        chk_headless = QCheckBox("Mode Headless")
+        chk_headless.setToolTip("Jalankan browser tanpa tampilan (lebih cepat)")
+        chk_headless.setChecked(config.HEADLESS)
+        label_headless = QLabel("Browser:")
+        label_headless.setStyleSheet("color: #E8EAF0; font-size: 12px;")
+        form.addRow(label_headless, chk_headless)
+
+        # Keterangan headless
+        lbl_note = QLabel("Tanpa tampilan browser, proses lebih cepat")
+        lbl_note.setStyleSheet("color: #6B7699; font-size: 10px; padding-left: 2px;")
+        form.addRow(QLabel(""), lbl_note)
+
+        # Page Load Wait
+        spin_wait = QSpinBox()
+        spin_wait.setRange(5, 60)
+        spin_wait.setValue(config.PAGE_LOAD_WAIT)
+        spin_wait.setSuffix(" detik")
+        label_wait = QLabel("Timeout halaman:")
+        label_wait.setStyleSheet("color: #E8EAF0; font-size: 12px;")
+        form.addRow(label_wait, spin_wait)
+
+        # Max Isi Chars
+        spin_isi = QSpinBox()
+        spin_isi.setRange(500, 10000)
+        spin_isi.setSingleStep(500)
+        spin_isi.setValue(config.MAX_ISI_CHARS)
+        spin_isi.setSuffix(" karakter")
+        label_isi = QLabel("Maks isi artikel:")
+        label_isi.setStyleSheet("color: #E8EAF0; font-size: 12px;")
+        form.addRow(label_isi, spin_isi)
+
+        layout.addLayout(form)
+        layout.addStretch()
+
+        # ─── Tombol ───────────────────────────────────────────
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        btn_batal = QPushButton("Batal")
+        btn_batal.setObjectName("btn_stop")
+        btn_batal.setFixedWidth(100)
+        btn_batal.clicked.connect(dialog.reject)
+        btn_layout.addWidget(btn_batal)
+
+        btn_simpan = QPushButton("Simpan")
+        btn_simpan.setFixedWidth(100)
+        btn_layout.addWidget(btn_simpan)
+
+        layout.addLayout(btn_layout)
+
+        def simpan():
+            config.DEFAULT_DELAY = spin_delay.value()
+            config.HEADLESS = chk_headless.isChecked()
+            config.PAGE_LOAD_WAIT = spin_wait.value()
+            config.MAX_ISI_CHARS = spin_isi.value()
+            # Update bottom bar
+            self.label_delay.setText(f"DELAY: {config.DEFAULT_DELAY}s")
+            self.label_headless.setText(f"HEADLESS: {'ON' if config.HEADLESS else 'OFF'}")
+            dialog.accept()
+
+        btn_simpan.clicked.connect(simpan)
+        dialog.exec_()
+
+    def _buka_tentang(self) -> None:
+        """Buka dialog Tentang Aplikasi."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Tentang Aplikasi")
+        dialog.setFixedSize(config.DIALOG_W, config.DIALOG_H)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(12)
+        layout.setContentsMargins(24, 24, 24, 24)
+
+        # Icon / Judul
+        title = QLabel("📰  News Scraper App")
+        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #4F8EF7;")
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+
+        # Versi
+        ver = QLabel("Versi 1.0.0")
+        ver.setStyleSheet("font-size: 12px; color: #6B7699;")
+        ver.setAlignment(Qt.AlignCenter)
+        layout.addWidget(ver)
+
+        layout.addSpacing(8)
+
+        # Deskripsi
+        desc = QLabel(
+            "Aplikasi desktop berbasis Python untuk mengambil data berita\n"
+            "secara otomatis dari website berita Indonesia.\n\n"
+            "User cukup memasukkan URL, aplikasi akan mengambil\n"
+            "semua artikel beserta isinya dan menampilkan hasilnya\n"
+            "dalam tabel yang rapi."
+        )
+        desc.setStyleSheet("font-size: 12px; color: #E8EAF0; line-height: 1.5;")
+        desc.setAlignment(Qt.AlignCenter)
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        layout.addSpacing(4)
+
+        # Stack
+        stack = QLabel("Python 3.12  •  Selenium  •  PyQt5  •  pandas")
+        stack.setStyleSheet("font-size: 11px; color: #00D4AA; font-family: monospace;")
+        stack.setAlignment(Qt.AlignCenter)
+        layout.addWidget(stack)
+
+        layout.addStretch()
+
+        # Tombol tutup
+        btn_tutup = QPushButton("Tutup")
+        btn_tutup.setFixedWidth(120)
+        btn_tutup.clicked.connect(dialog.accept)
+        h = QHBoxLayout()
+        h.addStretch()
+        h.addWidget(btn_tutup)
+        h.addStretch()
+        layout.addLayout(h)
+
+        dialog.exec_()
+
+    def _buka_tim(self) -> None:
+        """Buka dialog Tim Pengembang."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Tim Pengembang")
+        dialog.setFixedSize(config.DIALOG_W + 40, config.DIALOG_H + 100)  # Lebih besar untuk daftar tim
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(12)
+        layout.setContentsMargins(24, 20, 24, 20)
+
+        title = QLabel("👥  Tim Pengembang")
+        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #4F8EF7;")
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+
+        subtitle = QLabel("Proyek 1: Pengembangan Perangkat Lunak Desktop")
+        subtitle.setStyleSheet("font-size: 11px; color: #6B7699;")
+        subtitle.setAlignment(Qt.AlignCenter)
+        layout.addWidget(subtitle)
+
+        layout.addSpacing(8)
+
+        # Daftar anggota tim
+        tim = [
+            ("Darva",   "Lead Developer + Reviewer",         "#4F8EF7"),
+            ("Kemal",   "Data & Reliability Developer",      "#00D4AA"),
+            ("Richard", "GUI Developer (Fungsional)",         "#F7C948"),
+            ("Kyla",    "GUI Developer (Input & Filter)",     "#F75A5A"),
+            ("Aulia",   "UI Polish + Dokumentasi",            "#C084FC"),
+        ]
+
+        for nama, peran, warna in tim:
+            card = QFrame()
+            card.setObjectName("tim_card")
+            card.setStyleSheet(
+                f"QFrame#tim_card {{"
+                f"  background-color: #1E2333;"
+                f"  border: 1px solid #2A3147;"
+                f"  border-left: 3px solid {warna};"
+                f"  border-radius: 6px;"
+                f"  padding: 8px 12px;"
+                f"}}"
+            )
+            card_layout = QHBoxLayout(card)
+            card_layout.setContentsMargins(12, 6, 12, 6)
+
+            lbl_nama = QLabel(nama)
+            lbl_nama.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {warna}; background: transparent;")
+            lbl_nama.setFixedWidth(90)
+
+            lbl_peran = QLabel(peran)
+            lbl_peran.setStyleSheet("font-size: 12px; color: #E8EAF0; background: transparent;")
+
+            card_layout.addWidget(lbl_nama)
+            card_layout.addWidget(lbl_peran)
+            card_layout.addStretch()
+
+            layout.addWidget(card)
+
+        layout.addStretch()
+
+        btn_tutup = QPushButton("Tutup")
+        btn_tutup.setFixedWidth(120)
+        btn_tutup.clicked.connect(dialog.accept)
+        h = QHBoxLayout()
+        h.addStretch()
+        h.addWidget(btn_tutup)
+        h.addStretch()
+        layout.addLayout(h)
+
+        dialog.exec_()
 
     def _setup_ui(self) -> None:
         """
@@ -278,29 +649,15 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
+        main_layout.setSpacing(8)
+        main_layout.setContentsMargins(12, 12, 12, 8)
 
-        # Setup tabel:
-        self.tabel.setColumnCount(len(self.KOLOM_TABEL))
-        self.tabel.setHorizontalHeaderLabels(self.KOLOM_TABEL)
-        self.tabel.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.tabel.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.tabel.setAlternatingRowColors(True)
-
-        # Progress bar:
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(0)
-
-        # ─── Add InputPanel (Kyla's work) ────────────────────────
+        # ─── 1. Input Panel (Kyla) ────────────────────────────────
         main_layout.addWidget(self.input_panel)
 
-        # ─── Add Table ───────────────────────────────────────────
-        main_layout.addWidget(self.tabel)
-
-        # ─── Add Progress Bar ────────────────────────────────────
-        main_layout.addWidget(self.progress_bar)
-
-        # ─── Add Buttons Layout ──────────────────────────────────
+        # ─── 2. Tombol ( sesuai mockup: kiri scrape+stop, kanan export ) ─
         buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(8)
         buttons_layout.addWidget(self.btn_scrape)
         buttons_layout.addWidget(self.btn_stop)
         buttons_layout.addStretch()
@@ -308,18 +665,59 @@ class MainWindow(QMainWindow):
         buttons_layout.addWidget(self.btn_export_xl)
         main_layout.addLayout(buttons_layout)
 
-        # ─── Add Status Bar ──────────────────────────────────────
-        status_layout = QHBoxLayout()
-        status_layout.addWidget(self.label_status)
-        status_layout.addStretch()
-        status_layout.addWidget(self.label_jumlah)
-        main_layout.addLayout(status_layout)
+        # ─── 3. Progress Row ( status kiri, bar tengah, % kanan ) ────────
+        progress_row = QHBoxLayout()
+        progress_row.setSpacing(10)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFormat("%p%")
+        self.progress_bar.setTextVisible(True)
+        progress_row.addWidget(self.label_status)
+        progress_row.addWidget(self.progress_bar, stretch=1)
+        main_layout.addLayout(progress_row)
 
-        # WINDOW SETTING:                                                   (DONE)
+        # ─── 4. Tabel header row ( counter artikel ) ──────────────────────
+        table_header_row = QHBoxLayout()
+        table_header_row.addWidget(self.label_jumlah)
+        table_header_row.addStretch()
+        main_layout.addLayout(table_header_row)
 
-        #   self.setWindowTitle(config.APP_TITLE)
+        # ─── 5. Tabel ─────────────────────────────────────────────────────
+        self.tabel.setColumnCount(len(self.KOLOM_TABEL))
+        self.tabel.setHorizontalHeaderLabels(self.KOLOM_TABEL)
+        self.tabel.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.tabel.setAlternatingRowColors(True)
+        self.tabel.setSelectionBehavior(QTableWidget.SelectRows)
+        self.tabel.verticalHeader().setVisible(False)
+        self.tabel.horizontalHeader().setHighlightSections(False)
+        # Column widths: Judul(1) dan Isi(5) stretch, sisanya ResizeToContents
+        hdr = self.tabel.horizontalHeader()
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # #
+        hdr.setSectionResizeMode(1, QHeaderView.Stretch)            # Judul
+        hdr.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Tanggal
+        hdr.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Penulis
+        hdr.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Kategori
+        hdr.setSectionResizeMode(5, QHeaderView.Stretch)            # Isi
+        hdr.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # URL
+        main_layout.addWidget(self.tabel, stretch=1)
+
+        # ─── 6. Bottom status bar ( sesuai mockup ) ───────────────────────
+        bottom_bar = QWidget()
+        bottom_bar.setObjectName("bottom_bar")
+        bottom_layout = QHBoxLayout(bottom_bar)
+        bottom_layout.setContentsMargins(8, 4, 8, 4)
+        bottom_layout.setSpacing(16)
+        self.label_dot.setObjectName("label_dot_active" if False else "label_dot_idle")
+        bottom_layout.addWidget(self.label_dot)
+        bottom_layout.addWidget(self.label_state)
+        bottom_layout.addWidget(QLabel("|"))
+        bottom_layout.addWidget(self.label_delay)
+        bottom_layout.addWidget(self.label_headless)
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(self.label_logfile)
+        main_layout.addWidget(bottom_bar)
+
         self.setWindowTitle(config.APP_TITLE)
-        #   self.resize(config.WINDOW_W, config.WINDOW_H)
         self.resize(config.WINDOW_W, config.WINDOW_H)
         pass
 
@@ -342,32 +740,33 @@ class MainWindow(QMainWindow):
         # dst.
         self.btn_export_csv.clicked.connect(self.export_csv)
         self.btn_export_xl.clicked.connect(self.export_excel)
+        # Double-click baris → tampilkan isi lengkap
+        self.tabel.cellDoubleClicked.connect(self._lihat_detail)
         pass
 
     def _set_state_idle(self) -> None:
         """Set state GUI saat idle (tidak sedang scraping)."""              #(DONE)
-        # TODO Richard: atur enabled/disabled tombol untuk state idle        (DONE)
-
-        # btn_scrape: enabled                                                (DONE)
         self.btn_scrape.setEnabled(True)
-        # btn_stop: disabled                                                 (DONE)
         self.btn_stop.setEnabled(False)
-        # btn_export_*: enabled hanya jika self.data_hasil tidak kosong      (DONE)
         self.btn_export_csv.setEnabled(len(self.data_hasil) > 0)
         self.btn_export_xl.setEnabled(len(self.data_hasil) > 0)
+        # Update bottom status bar
+        self.label_dot.setObjectName("label_dot_idle")
+        self.label_dot.setStyleSheet("color: #6B7699;")
+        self.label_state.setText("SIAP")
+        self.label_state.setStyleSheet("color: #6B7699; font-family: monospace; font-size: 11px;")
         pass
 
     def _set_state_scraping(self) -> None:
         """Set state GUI saat sedang scraping."""                           #(DONE)
-        # TODO Richard: atur enabled/disabled tombol untuk state scraping    (DONE)
-
-        # btn_scrape: disabled                                               (DONE)
         self.btn_scrape.setEnabled(False)
-        # btn_stop: enabled                                                  (DONE)
         self.btn_stop.setEnabled(True)
-        # btn_export_*: disabled                                             (DONE)
         self.btn_export_csv.setEnabled(False)
         self.btn_export_xl.setEnabled(False)
+        # Update bottom status bar
+        self.label_dot.setStyleSheet("color: #00D4AA;")
+        self.label_state.setText("SCRAPING AKTIF")
+        self.label_state.setStyleSheet("color: #00D4AA; font-family: monospace; font-size: 11px; font-weight: bold;")
         pass
 
     def mulai_scraping(self) -> None:
@@ -392,6 +791,13 @@ class MainWindow(QMainWindow):
 
         # INGAT: simpan worker di self.worker, bukan variabel lokal! (STORED TO self)
         inputs = self.input_panel.get_inputs()
+
+        # Konversi QDate → datetime.date agar kompatibel dengan filter.py
+        if inputs["start_date"] is not None:
+            inputs["start_date"] = inputs["start_date"].toPyDate()
+        if inputs["end_date"] is not None:
+            inputs["end_date"] = inputs["end_date"].toPyDate()
+
         self.worker = worker_module.ScraperWorker(**inputs)
 
         self.worker.sinyal_progress.connect(self.update_progress)
@@ -418,8 +824,8 @@ class MainWindow(QMainWindow):
         Args:
             artikel: dict artikel (format kesepakatan tim)
 
-        Urutan kolom tabel: No, Judul, Tanggal, Penulis, Kategori, URL, Gambar
-        (Isi tidak ditampilkan di tabel, tapi disimpan di self.data_hasil untuk ekspor)
+        Urutan kolom tabel: #, Judul, Tanggal, Penulis, Kategori, Isi (preview), URL
+        (double-click baris untuk lihat detail lengkap termasuk gambar)
         """
         # TODO Richard:                                                      (DONE)
 
@@ -430,16 +836,24 @@ class MainWindow(QMainWindow):
         # self.tabel.insertRow(row)
         self.tabel.insertRow(row)
 
-        # Isi setiap kolom dengan QTableWidgetItem
-        self.tabel.setItem(row, 0, QTableWidgetItem(str(row + 1)))
+        # Urutan kolom: #(0), Judul(1), Tanggal(2), Penulis(3), Kategori(4), Isi(5), URL(6)
+        no_item = QTableWidgetItem(f"{row + 1:02d}")
+        no_item.setTextAlignment(Qt.AlignCenter)
+        self.tabel.setItem(row, 0, no_item)
         self.tabel.setItem(row, 1, QTableWidgetItem(artikel.get("judul", "")))
-        self.tabel.setItem(row, 2, QTableWidgetItem(artikel.get("tanggal", "")))
+        self.tabel.setItem(row, 2, QTableWidgetItem(_format_tanggal(artikel.get("tanggal", ""))))
         self.tabel.setItem(row, 3, QTableWidgetItem(artikel.get("penulis", "")))
         self.tabel.setItem(row, 4, QTableWidgetItem(artikel.get("kategori", "")))
-        self.tabel.setItem(row, 5, QTableWidgetItem(artikel.get("url", "")))
-        self.tabel.setItem(row, 6, QTableWidgetItem(artikel.get("gambar_url", "")))
 
-        self.label_jumlah.setText(f"{len(self.data_hasil)} artikel")
+        # Kolom Isi — preview 150 karakter, double-click untuk lihat lengkap
+        isi_raw = artikel.get("isi", "")
+        isi_singkat = isi_raw[:150] + ("..." if len(isi_raw) > 150 else "")
+        self.tabel.setItem(row, 5, QTableWidgetItem(isi_singkat))
+
+        self.tabel.setItem(row, 6, QTableWidgetItem(artikel.get("url", "")))
+
+        self.label_jumlah.setText(f"Menampilkan {len(self.data_hasil)} artikel")
+        self.label_status.setText(f"Menampilkan {len(self.data_hasil)} artikel")
         pass
 
     def update_progress(self, nilai: int) -> None:
@@ -454,7 +868,7 @@ class MainWindow(QMainWindow):
         # TODO Richard: update label_status, label_jumlah, set state idle    (DONE)
 
         self.label_status.setText("Selesai.")
-        self.label_jumlah.setText(f"{jumlah} artikel")
+        self.label_jumlah.setText(f"Menampilkan {jumlah} artikel")
         self._set_state_idle()
         pass
 
@@ -466,19 +880,99 @@ class MainWindow(QMainWindow):
         self._set_state_idle()
         pass
 
+    def _lihat_detail(self, row: int, col: int) -> None:
+        """
+        Tampilkan dialog popup isi lengkap artikel saat baris di-double-click.
+
+        Args:
+            row: indeks baris yang diklik
+            col: indeks kolom yang diklik (tidak dipakai)
+        """
+        if row >= len(self.data_hasil):
+            return
+
+        artikel = self.data_hasil[row]
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(artikel.get("judul", "Detail Artikel")[:80])
+        dialog.resize(config.DETAIL_DLG_W, config.DETAIL_DLG_H)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(8)
+
+        # ─── Judul ───────────────────────────────────────────────
+        label_judul = QLabel(f"<h3>{artikel.get('judul', '-')}</h3>")
+        label_judul.setWordWrap(True)
+        label_judul.setTextFormat(Qt.RichText)
+        layout.addWidget(label_judul)
+
+        # ─── Info meta ───────────────────────────────────────────
+        info_html = (
+            f"<b>Tanggal:</b> {artikel.get('tanggal', '-')} &nbsp;|&nbsp; "
+            f"<b>Penulis:</b> {artikel.get('penulis', '-')} &nbsp;|&nbsp; "
+            f"<b>Kategori:</b> {artikel.get('kategori', '-')}<br>"
+            f"<b>URL:</b> <a href='{artikel.get('url', '')}' style='color:#2980b9;'>"
+            f"{artikel.get('url', '-')}</a>"
+        )
+        label_info = QLabel(info_html)
+        label_info.setWordWrap(True)
+        label_info.setOpenExternalLinks(True)
+        label_info.setTextFormat(Qt.RichText)
+        layout.addWidget(label_info)
+
+        # ─── Gambar artikel ──────────────────────────────────────
+        gambar_url = artikel.get("gambar_url", "-")
+        if gambar_url and gambar_url not in ("-", ""):
+            import urllib.request
+            try:
+                req = urllib.request.Request(
+                    gambar_url,
+                    headers={"User-Agent": config.USER_AGENT}
+                )
+                data = urllib.request.urlopen(req, timeout=5).read()
+                pixmap = QPixmap()
+                if pixmap.loadFromData(data) and not pixmap.isNull():
+                    label_img = QLabel()
+                    # Scale gambar agar muat di dialog (max lebar 720px, jaga aspek ratio)
+                    scaled = pixmap.scaledToWidth(
+                        min(720, pixmap.width()),
+                        Qt.SmoothTransformation
+                    )
+                    # Batasi tinggi max 260px
+                    if scaled.height() > 260:
+                        scaled = pixmap.scaledToHeight(260, Qt.SmoothTransformation)
+                    label_img.setPixmap(scaled)
+                    label_img.setAlignment(Qt.AlignCenter)
+                    layout.addWidget(label_img)
+            except Exception:
+                pass  # Gambar gagal dimuat — lewati, tidak crash
+
+        # ─── Isi artikel ─────────────────────────────────────────
+        layout.addWidget(QLabel("<b>Isi Artikel:</b>"))
+        text_isi = QTextBrowser()
+        text_isi.setPlainText(artikel.get("isi", "-"))
+        text_isi.setReadOnly(True)
+        layout.addWidget(text_isi)
+
+        # ─── Tombol tutup ────────────────────────────────────────
+        btn_tutup = QPushButton("Tutup")
+        btn_tutup.clicked.connect(dialog.accept)
+        layout.addWidget(btn_tutup)
+
+        dialog.exec_()
+
     def export_csv(self) -> None:
         """Panggil exporter.export_csv() dengan self.data_hasil."""
-        # TODO Richard: panggil exporter.export_csv(self.data_hasil, "hasil_scraping") (DONE)
-        # Tampilkan dialog sukses/error
-
-        exporter.export_csv(self.data_hasil, "hasil_scraping")
-        QMessageBox.information(self, "Success", "Data berhasil diexport ke CSV.")
-        pass
+        try:
+            path = exporter.export_csv(self.data_hasil, "hasil_scraping")
+            QMessageBox.information(self, "Sukses", f"Data berhasil diexport ke CSV:\n{path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Gagal", str(e))
 
     def export_excel(self) -> None:
         """Panggil exporter.export_excel() dengan self.data_hasil."""
-        # TODO Richard: panggil exporter.export_excel(self.data_hasil, "hasil_scraping") (DONE)
-
-        exporter.export_excel(self.data_hasil, "hasil_scraping")
-        QMessageBox.information(self, "Success", "Data berhasil diexport ke Excel.")
-        pass
+        try:
+            path = exporter.export_excel(self.data_hasil, "hasil_scraping")
+            QMessageBox.information(self, "Sukses", f"Data berhasil diexport ke Excel:\n{path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Gagal", str(e))

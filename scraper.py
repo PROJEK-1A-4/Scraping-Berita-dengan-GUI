@@ -87,9 +87,65 @@ def _extract_text(driver: webdriver.Chrome, selectors: list[tuple], default: str
     for by, value in selectors:
         try:
             element = driver.find_element(by, value)
-            return element.text.strip()
+            text = element.text.strip()
+            if text:
+                return text
         except NoSuchElementException:
             continue
+
+    return default
+
+
+def _extract_meta(driver: webdriver.Chrome, names: list[str], default: str = "-") -> str:
+    """
+    Helper: baca atribut 'content' dari <meta> tag secara berurutan.
+    Mendukung OpenGraph (property=), Standard meta (name=), dan Schema.org (itemprop=).
+
+    Ini adalah cara paling GENERAL karena merupakan standar internasional:
+      - OpenGraph: dipakai semua website untuk share ke sosmed
+      - Schema.org: standar Google untuk SEO / rich snippets
+      - Keduanya ada di SEMUA website berita modern, tanpa kecuali.
+
+    Contoh:
+        _extract_meta(driver, ["og:title", "twitter:title"])
+        → mencari <meta property='og:title'> lalu <meta name='twitter:title'>
+
+    Args:
+        driver: WebDriver aktif
+        names:  list nama property/name/itemprop meta tag, dicoba dari indeks 0
+        default: nilai kembalian jika semua gagal
+
+    Returns:
+        str: nilai content meta tag pertama yang ditemukan, atau default
+    """
+    from selenium.common.exceptions import NoSuchElementException
+
+    for name in names:
+        # 1. Coba property="..." — OpenGraph (og:title, og:description, article:published_time)
+        for attr in ("property", "name"):
+            try:
+                el = driver.find_element(
+                    By.CSS_SELECTOR, f'meta[{attr}="{name}"]'
+                )
+                content = el.get_attribute("content")
+                if content and content.strip():
+                    return content.strip()
+            except NoSuchElementException:
+                continue
+
+        # 2. Coba itemprop="..." — Schema.org (bisa di elemen apa pun, bukan cuma <meta>)
+        try:
+            el = driver.find_element(By.CSS_SELECTOR, f'[itemprop="{name}"]')
+            # Coba atribut content dulu (utk <meta>), lalu datetime (<time>), lalu text
+            for attr in ("content", "datetime"):
+                val = el.get_attribute(attr)
+                if val and val.strip():
+                    return val.strip()
+            text = el.text.strip()
+            if text:
+                return text
+        except NoSuchElementException:
+            pass
 
     return default
 
@@ -111,11 +167,17 @@ def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
 
     links: list[str] = []
     seen: set[str] = set()
-    base = "{u.scheme}://{u.netloc}".format(u=urlparse(url))
+    parsed_input  = urlparse(url)
+    base          = f"{parsed_input.scheme}://{parsed_input.netloc}"
 
-    # Keyword yang menandakan URL bukan artikel
-    NON_ARTIKEL = ("search", "query=", "tag/", "/kirim", "/login",
-                   "/register", "/subscribe", "#", "javascript:")
+    # Base domain untuk filter same-domain: ambil 2 segmen terakhir
+    # Contoh: "nasional.kompas.com" → "kompas.com"
+    #          "www.cnnindonesia.com" → "cnnindonesia.com"
+    netloc_parts = parsed_input.netloc.split(".")
+    base_domain  = ".".join(netloc_parts[-2:])  # e.g. "kompas.com"
+
+    # Keyword yang menandakan URL bukan artikel (diambil dari config.py)
+    NON_ARTIKEL_KW = config.NON_ARTIKEL_KEYWORDS
 
     try:
         driver.get(url)
@@ -145,18 +207,24 @@ def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
             if not href.startswith("http"):
                 continue
 
+            # ── FILTER DOMAIN: hanya ambil link dari domain yang sama ──────
+            # Izinkan subdomain berbeda (mis. m.detik.com saat input www.detik.com)
+            parsed_href = urlparse(href)
+            if not parsed_href.netloc.endswith(base_domain):
+                continue
+
             # Buang URL yang mengandung keyword non-artikel
-            if any(kw in href for kw in NON_ARTIKEL):
+            if any(kw in href for kw in NON_ARTIKEL_KW):
                 continue
 
             # Buang URL dengan ekstensi non-artikel
-            parsed = urlparse(href)
-            if parsed.path.lower().endswith((".jpg", ".png", ".gif", ".pdf", ".mp4")):
+            if parsed_href.path.lower().endswith((".jpg", ".png", ".gif", ".pdf", ".mp4", ".webp")):
                 continue
 
-            # Hanya ambil URL dengan path minimal 2 level (/kategori/judul-artikel)
-            path_depth = len([p for p in parsed.path.split("/") if p])
-            if path_depth < 2:
+            # Hanya ambil URL dengan path minimal N level (dari config.PATH_DEPTH_MIN)
+            # Depth < config.PATH_DEPTH_MIN (/nasional/politik) biasanya halaman kategori
+            path_depth = len([p for p in parsed_href.path.split("/") if p])
+            if path_depth < config.PATH_DEPTH_MIN:
                 continue
 
             if href in seen:
@@ -280,51 +348,153 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
     except TimeoutException:
         pass  # DOM kemungkinan sudah siap, lanjutkan scraping
 
-    artikel["judul"] = _extract_text(driver, [
-        (By.TAG_NAME, "h1"),
-        (By.CSS_SELECTOR, "article h1"),
-    ])
+    # ════════════════════════════════════════════════════════════
+    # STRATEGI EKSTRAKSI — 3 lapisan dari umum ke spesifik:
+    #
+    #   Lapisan 1 (UNIVERSAL) — OpenGraph + Schema.org
+    #     → Standar internasional. SEMUA website berita modern
+    #       mengimplementasikan ini untuk SEO dan social sharing.
+    #       Works on ANY website, not just CNN/Detik/Kompas.
+    #
+    #   Lapisan 2 (SEMI-UMUM) — wildcard [class*='...'] + semantic HTML
+    #     → Menebak nama class berdasarkan pola umum konvensi developer.
+    #     → Tag HTML5 semantik: <article>, <time>, <main>.
+    #
+    #   Lapisan 3 (OPTIMASI) — class spesifik Detik/Kompas/CNN
+    #     → Bukan "hardcode untuk 1 site" tapi shortcut agar lebih cepat
+    #       dan akurat di site yang sudah kita kenal.
+    #     → Jika tidak ada, lapisan 1 & 2 sudah cukup.
+    # ════════════════════════════════════════════════════════════
 
-    artikel["tanggal"] = _extract_text(driver, [
-        (By.CSS_SELECTOR, ".read__time"),
-        (By.CSS_SELECTOR, ".detail__date"),
-        (By.TAG_NAME, "time"),
-        (By.CSS_SELECTOR, ".date"),
-    ])
+    # ── Judul ─────────────────────────────────────────────────
+    artikel["judul"] = (
+        # L1: OpenGraph og:title & Schema.org headline
+        _extract_meta(driver, ["og:title", "twitter:title", "headline"])
+        or
+        # L2 + L3: fallback ke elemen HTML
+        _extract_text(driver, [
+            (By.CSS_SELECTOR, "[itemprop='headline']"),     # Schema.org (elemen teks)
+            (By.CSS_SELECTOR, "h1.detail__title"),          # Detik (L3)
+            (By.CSS_SELECTOR, "h1.read__title"),            # Kompas (L3)
+            (By.CSS_SELECTOR, "h1.title"),                  # CNN Indonesia (L3)
+            (By.CSS_SELECTOR, "article h1"),                # Semantic HTML5
+            (By.TAG_NAME, "h1"),                            # Generic
+        ])
+    )
 
-    isi = _extract_text(driver, [
-        (By.CSS_SELECTOR, ".read__content"),
-        (By.CSS_SELECTOR, ".detail__body-text"),
-        (By.CSS_SELECTOR, "article"),
-        (By.CSS_SELECTOR, ".content"),
-    ])
+    # ── Tanggal ───────────────────────────────────────────────
+    # L1: OpenGraph article:published_time / Schema.org datePublished
+    tanggal_meta = _extract_meta(
+        driver, ["article:published_time", "datePublished", "publishdate", "createdate", "date", "pubdate"]
+    )
+    if tanggal_meta != config.FIELD_KOSONG:
+        artikel["tanggal"] = tanggal_meta
+    else:
+        # Coba ambil atribut datetime dari elemen <time> dulu
+        from selenium.common.exceptions import NoSuchElementException
+        tanggal_ditemukan = False
+        for sel in ["time[datetime]", "time"]:
+            try:
+                el = driver.find_element(By.CSS_SELECTOR, sel)
+                dt_attr = el.get_attribute("datetime")
+                if dt_attr and dt_attr.strip():
+                    artikel["tanggal"] = dt_attr.strip()
+                    tanggal_ditemukan = True
+                    break
+                text = el.text.strip()
+                if text:
+                    artikel["tanggal"] = text
+                    tanggal_ditemukan = True
+                    break
+            except NoSuchElementException:
+                continue
+
+        if not tanggal_ditemukan:
+            # L2 + L3: fallback ke elemen HTML teks
+            artikel["tanggal"] = _extract_text(driver, [
+                (By.CSS_SELECTOR, ".detail__date"),             # Detik (L3)
+                (By.CSS_SELECTOR, ".read__time"),               # Kompas (L3)
+                (By.CSS_SELECTOR, ".publish_date"),             # CNN Indonesia (L3)
+                (By.CSS_SELECTOR, "[class*='publish']"),        # Wildcard
+                (By.CSS_SELECTOR, "[class*='date']"),           # Wildcard
+                (By.CSS_SELECTOR, "[class*='time']"),           # Wildcard
+            ])
+
+    # ── Isi artikel ───────────────────────────────────────────
+    # L1: Schema.org articleBody
+    isi = _extract_meta(driver, ["articleBody"])
+    if isi == config.FIELD_KOSONG:
+        # L2 + L3: wildcard class, semantic HTML, lalu site-specific
+        isi = _extract_text(driver, [
+            (By.CSS_SELECTOR, "[itemprop='articleBody']"),  # Schema.org (elemen teks)
+            (By.CSS_SELECTOR, "[class*='article-body']"),   # Wildcard
+            (By.CSS_SELECTOR, "[class*='article-content']"),# Wildcard
+            (By.CSS_SELECTOR, "[class*='post-content']"),   # Wildcard (WordPress dll)
+            (By.CSS_SELECTOR, "[class*='story-body']"),     # Wildcard
+            (By.CSS_SELECTOR, "[class*='entry-content']"),  # Wildcard (WordPress)
+            (By.CSS_SELECTOR, ".detail__body-text"),        # Detik (L3)
+            (By.CSS_SELECTOR, ".read__content"),            # Kompas (L3)
+            (By.CSS_SELECTOR, ".detail-text"),              # CNN Indonesia (L3)
+            (By.CSS_SELECTOR, "article"),                   # Semantic HTML5
+            (By.CSS_SELECTOR, "main"),                      # Semantic HTML5
+        ])
     artikel["isi"] = isi[:config.MAX_ISI_CHARS]
 
-    # ── Field bonus ───────────────────────────────────────────
-    artikel["penulis"] = _extract_text(driver, [
-        (By.CSS_SELECTOR, ".read__author"),
-        (By.CSS_SELECTOR, ".detail__author"),
-        (By.CSS_SELECTOR, ".author"),
-    ])
+    # ── Penulis ───────────────────────────────────────────────
+    artikel["penulis"] = (
+        # L1: Schema.org author
+        _extract_meta(driver, ["author", "article:author"])
+        or
+        # L2 + L3
+        _extract_text(driver, [
+            (By.CSS_SELECTOR, "[itemprop='author'] [itemprop='name']"),  # Schema.org
+            (By.CSS_SELECTOR, "[itemprop='author']"),                    # Schema.org
+            (By.CSS_SELECTOR, "[rel='author']"),                         # Microformat
+            (By.CSS_SELECTOR, "[class*='author-name']"),                 # Wildcard
+            (By.CSS_SELECTOR, "[class*='author']"),                      # Wildcard
+            (By.CSS_SELECTOR, ".detail__author"),                        # Detik (L3)
+            (By.CSS_SELECTOR, ".read__author"),                          # Kompas (L3)
+        ])
+    )
 
-    artikel["kategori"] = _extract_text(driver, [
-        (By.CSS_SELECTOR, ".breadcrumb__item"),
-        (By.CSS_SELECTOR, ".detail__nav > a"),
-        (By.CSS_SELECTOR, ".category"),
-    ])
+    # ── Kategori ──────────────────────────────────────────────
+    artikel["kategori"] = (
+        # L1: Schema.org articleSection
+        _extract_meta(driver, ["articleSection", "article:section"])
+        or
+        # L2 + L3
+        _extract_text(driver, [
+            (By.CSS_SELECTOR, "[itemprop='articleSection']"),    # Schema.org
+            (By.CSS_SELECTOR, "[class*='breadcrumb'] a"),        # Wildcard
+            (By.CSS_SELECTOR, "[class*='category']"),            # Wildcard
+            (By.CSS_SELECTOR, ".detail__nav > a"),               # Detik (L3)
+            (By.CSS_SELECTOR, ".breadcrumb__item"),              # Kompas (L3)
+            (By.CSS_SELECTOR, ".label_channel"),                 # CNN Indonesia (L3)
+        ])
+    )
 
-    from selenium.common.exceptions import NoSuchElementException
-    for by, value in [
-        (By.CSS_SELECTOR, ".photo__wrap img"),
-        (By.CSS_SELECTOR, ".detail__media img"),
-        (By.TAG_NAME, "img"),
-    ]:
-        try:
-            img_element = driver.find_element(by, value)
-            artikel["gambar_url"] = img_element.get_attribute("src")
-            break
-        except NoSuchElementException:
-            continue
+    # ── Gambar URL ────────────────────────────────────────────
+    # L1: OpenGraph og:image — PALING RELIABLE, semua website pakai ini untuk share
+    gambar_meta = _extract_meta(driver, ["og:image", "twitter:image"])
+    if gambar_meta != config.FIELD_KOSONG:
+        artikel["gambar_url"] = gambar_meta
+    else:
+        # L2 + L3: cari img element
+        from selenium.common.exceptions import NoSuchElementException
+        for by, value in [
+            (By.CSS_SELECTOR, "[itemprop='image']"),        # Schema.org
+            (By.CSS_SELECTOR, "article img"),               # Gambar dalam artikel
+            (By.CSS_SELECTOR, ".photo__wrap img"),          # Detik (L3)
+            (By.CSS_SELECTOR, ".detail__media img"),        # Detik (L3)
+        ]:
+            try:
+                img_el = driver.find_element(by, value)
+                src = img_el.get_attribute("src") or img_el.get_attribute("data-src")
+                if src and src.startswith("http"):
+                    artikel["gambar_url"] = src
+                    break
+            except NoSuchElementException:
+                continue
 
     time.sleep(config.DEFAULT_DELAY)
     return artikel

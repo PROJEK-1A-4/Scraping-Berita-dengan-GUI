@@ -1,5 +1,5 @@
 # 💬 PROMPT_GUIDE.md — Template Prompt AI per Anggota
-> Salin template sesuai namamu → paste ke AI (Claude/ChatGPT/Cursor) → tulis pertanyaanmu di bawahnya
+> Salin template sesuai namamu → paste ke AI → tulis pertanyaanmu di bawahnya
 > Selalu sertakan kode yang sudah ada agar AI tidak jawab asal!
 
 ---
@@ -11,59 +11,31 @@
 Saya Darva, Lead Developer proyek News Scraper App.
 
 KONTEKS PROYEK:
-- Stack: Python, Selenium, PyQt5>=5.15
+- Stack: Python 3.12, Selenium, PyQt5>=5.15, Chrome 145 headless
 - Saya mengerjakan: [scraper.py / worker.py / filter.py / main.py]
+- Status: semua fitur SELESAI
 
-FORMAT DATA ARTIKEL yang disepakati tim:
+FORMAT DATA ARTIKEL (kesepakatan tim):
 artikel = {
-    "judul": str, "tanggal": str, "isi": str (maks 500 char),
+    "judul": str, "tanggal": str, "isi": str (maks 2000 char),
     "url": str, "penulis": str, "kategori": str, "gambar_url": str
 }
 Field tidak ada → "-"  |  BUKAN None atau ""
 
-FUNGSI WAJIB di scraper.py:
-- setup_driver()              → Chrome headless
-- get_all_links(driver, url, limit)  → list URL artikel
-- scrape_article(driver, url) → dict artikel
-- handle_pagination()         → ikuti halaman berikutnya
-- is_artikel_valid(artikel)   → cek judul & isi tidak kosong
-  (threshold dari config: MIN_JUDUL_CHARS=5, MIN_ISI_CHARS=20)
-
-KETENTUAN WAJIB:
-- Selector umum (h1, article, time) — JANGAN hardcode nama website
-- Delay 1.5 detik antar request
-- Headless mode, pakai webdriver-manager
+FUNGSI di scraper.py:
+- setup_driver()              → Chrome headless + eager + anti-bot
+- get_all_links(driver, url, limit)  → same-domain, path_depth≥3, NON_ARTIKEL filter
+- scrape_article(driver, url) → 3-layer extraction: OG/Schema → wildcard → site-specific
+- handle_pagination(driver)   → 4 strategi (rel=next, teks, URL, berhenti)
+- is_artikel_valid(artikel)   → threshold dari config (MIN_JUDUL=15, MIN_ISI=100)
+- _extract_text(driver, selectors)  → helper CSS/XPath
+- _extract_meta(driver, names)      → helper OpenGraph/Schema.org/itemprop
 
 INI KODE SAYA SEKARANG:
 [paste kode di sini]
 
 TOLONG BANTU:
 [pertanyaan spesifik di sini]
-```
-
-### Contoh Pertanyaan yang Bagus untuk Darva
-```
-# Scraper
-"Tolong buatkan fungsi get_all_links() yang mencari semua link artikel
- dari halaman menggunakan selector umum, tidak hardcode untuk website tertentu"
-
-"Fungsi scrape_article() saya return semua '-' padahal websitenya ada konten.
- Kemungkinan masalahnya apa dan bagaimana solusinya?"
-
-"Tolong buatkan strategi handle_pagination() yang mencoba 4 metode:
- rel=next, teks tombol Next/Selanjutnya, pola URL page=N, lalu berhenti"
-
-# Worker
-"Tolong buatkan class ScraperWorker(QThread) dengan 5 sinyal:
- sinyal_progress(int), sinyal_hasil(dict), sinyal_selesai(int),
- sinyal_error(str), sinyal_status(str)"
-
-"Bagaimana cara tambahkan ThreadPoolExecutor(max_workers=3) ke worker.py
- supaya scraping beberapa artikel sekaligus?"
-
-# Filter
-"Tolong buatkan parse_tanggal() yang support format:
- '04 Mar 2025', '4 Maret 2025', '2025-03-04', '04/03/2025'"
 ```
 
 ---
@@ -75,15 +47,16 @@ TOLONG BANTU:
 Saya Kemal, Data & Reliability Developer proyek News Scraper App.
 
 KONTEKS PROYEK:
-- Stack: Python, PyQt5, pandas, openpyxl
+- Stack: Python 3.12, PyQt5, pandas, openpyxl
 - Saya mengerjakan: [config.py / logger.py / exporter.py]
 
-CONFIG yang sudah ada (config.py):
-DEFAULT_DELAY=1.5, DEFAULT_LIMIT=20, MAX_ISI_CHARS=500
-MIN_JUDUL_CHARS=5, MIN_ISI_CHARS=20
-FILTER_INCLUDE_UNKNOWN_DATE=True
-FIELD_KOSONG="-"
-OUTPUT_DIR="output/", LOG_FILE="logs/scraper.log"
+CONFIG (config.py) — nilai aktual:
+DEFAULT_DELAY=1.5, DEFAULT_LIMIT=20, MAX_ISI_CHARS=2000
+MIN_JUDUL_CHARS=15, MIN_ISI_CHARS=100
+FIELD_KOSONG="-", FILTER_INCLUDE_UNKNOWN_DATE=True
+CSV_ENCODING="utf-8-sig", EXCEL_ENGINE="openpyxl"
+LOG_FORMAT="%(asctime)s - %(levelname)s - %(message)s", LOG_LEVEL="DEBUG"
+OUTPUT_DIR=Path("output"), LOG_FILE=Path("logs")/"scraper.log"
 CSV_HEADERS=["No","Judul","Tanggal","Penulis","Kategori","Isi","URL","Gambar_URL"]
 
 FORMAT DATA ARTIKEL:
@@ -99,67 +72,35 @@ TOLONG BANTU:
 [pertanyaan spesifik di sini]
 ```
 
-### Contoh Pertanyaan yang Bagus untuk Kemal
-```
-# config.py — ini HARUS selesai HARI PERTAMA
-"Tolong buatkan config.py lengkap dengan semua variabel ini:
- [paste daftar variabel dari blueprint]
- Tambahkan komentar penjelasan di tiap variabel"
-
-# logger.py
-"Tolong buatkan logger.py dengan fungsi setup_logger(), log_info(),
- log_error(), log_warning() yang menulis ke file logs/scraper.log
- DAN tampil di terminal sekaligus, dengan format timestamp"
-
-# exporter.py
-"Tolong buatkan export_csv(data, filename) menggunakan pandas.
- - data adalah list of dict dengan key: judul, tanggal, penulis, kategori, isi, url, gambar_url
- - Header CSV: ['No','Judul','Tanggal','Penulis','Kategori','Isi','URL','Gambar_URL']
- - Encoding: utf-8-sig (supaya Excel bisa baca)
- - Simpan ke folder output/"
-
-"Tolong buatkan export_excel(data, filename) menggunakan openpyxl.
- - Sama dengan CSV tapi format .xlsx
- - Auto-width tiap kolom sesuai kontennya
- - Header row dengan background color biru"
-
-# Test
-"Tolong buatkan test sederhana di if __name__ == '__main__' untuk
- test export dengan 2 baris data dummy"
-```
-
 ---
 
-## 🔵 RICHARD — gui.py (Main Window, Tabel, Tombol, Progress Bar)
+## 🔵 RICHARD — gui.py (MainWindow)
 
 ### Template Dasar
 ```
 Saya Richard, GUI Developer proyek News Scraper App.
-Saya mengerjakan bagian fungsional gui.py (main window, tabel, tombol, progress bar).
+Saya mengerjakan bagian fungsional gui.py (MainWindow).
 
 KONTEKS PROYEK:
 - Framework: PyQt5>=5.15 (BUKAN PyQt6!)
 - File ini: gui.py — class MainWindow
 
-KOMPONEN YANG SAYA BUAT:
-- QMainWindow (main window utama)
-- QTableWidget (7 kolom: No, Judul, Tanggal, Penulis, Kategori, URL, Gambar)
-- QProgressBar (0-100%)
-- QPushButton: "Mulai Scraping", "Stop", "Export CSV", "Export Excel"
-- QLabel: label_status (teks status), label_jumlah (counter artikel)
-- self.worker = ScraperWorker(QThread) — disimpan di self, bukan variabel lokal!
-- self.data_hasil = [] — list of dict semua artikel
+KOMPONEN:
+- QMainWindow (dark theme #0F1117)
+- QTableWidget (7 kolom: #, Judul, Tanggal, Penulis, Kategori, Isi preview, URL)
+- QProgressBar (gradient biru→teal)
+- QPushButton: "▶ Mulai Scraping", "■ Stop", "↓ Export CSV", "↓ Export Excel"
+- Bottom bar: dot indicator + state + delay + headless + logfile
+- Dialog detail: double-click → QDialog (gambar QPixmap/urllib + isi 2000ch + meta)
+- self.worker = ScraperWorker(**inputs) — disimpan di self!
+- self.data_hasil = [] — list of dict
 
-SINYAL DARI WORKER yang harus disambungkan:
+SINYAL DARI WORKER:
 sinyal_progress(int) → update_progress()
-sinyal_hasil(dict)   → tambah_baris()
+sinyal_hasil(dict)   → tambah_baris()   (isi preview 150ch)
 sinyal_selesai(int)  → scraping_selesai()
 sinyal_error(str)    → tampilkan_error()
 sinyal_status(str)   → label_status.setText()
-
-FORMAT DICT ARTIKEL:
-{"judul": str, "tanggal": str, "penulis": str,
- "kategori": str, "isi": str, "url": str, "gambar_url": str}
 
 INI KODE SAYA SEKARANG:
 [paste kode di sini]
@@ -168,32 +109,9 @@ TOLONG BANTU:
 [pertanyaan spesifik di sini]
 ```
 
-### Contoh Pertanyaan yang Bagus untuk Richard
-```
-"Tolong buatkan skeleton class MainWindow(QMainWindow) dengan layout:
- - Panel atas: tempat untuk InputPanel (akan diisi Kyla)
- - Row tombol: Mulai Scraping | Stop | [spacer] | Export CSV | Export Excel
- - Progress bar + label status
- - QTableWidget 7 kolom di bawah"
-
-"Tolong buatkan fungsi tambah_baris(self, artikel: dict) yang menerima
- sinyal dari worker dan menambahkan 1 baris ke QTableWidget.
- Kolom: No, Judul, Tanggal, Penulis, Kategori, URL, Gambar"
-
-"Tolong buatkan fungsi mulai_scraping(self) yang:
- 1. Ambil URL, limit, start_date, end_date dari self.input_panel
- 2. Buat ScraperWorker dan simpan di self.worker
- 3. Sambungkan semua sinyal
- 4. Disable tombol Scrape, enable tombol Stop
- 5. Jalankan worker.start()"
-
-"Bagaimana cara export CSV dari self.data_hasil menggunakan
- fungsi export_csv() dari exporter.py dengan QFileDialog?"
-```
-
 ---
 
-## 🟣 KYLA — gui.py (Input Panel, Date Picker, Validasi)
+## 🟣 KYLA — gui.py (InputPanel)
 
 ### Template Dasar
 ```
@@ -204,19 +122,17 @@ KONTEKS PROYEK:
 - Framework: PyQt5>=5.15 (BUKAN PyQt6!)
 - File ini: gui.py — class InputPanel
 
-KOMPONEN YANG SAYA BUAT:
-- QLineEdit input_url      → input URL berita
-- QSpinBox input_limit     → limit artikel, range 1-500, default 20
-- QCheckBox checkbox_filter → aktifkan/nonaktifkan filter tanggal
-- QDateEdit date_start     → tanggal mulai (disabled jika checkbox off)
-- QDateEdit date_end       → tanggal selesai (disabled jika checkbox off)
+KOMPONEN:
+- QLineEdit input_url      → placeholder, clearButtonEnabled, minH 32
+- QSpinBox input_limit     → range 1-500, default 20, suffix " artikel"
+- QCheckBox checkbox_filter → toggle filter tanggal
+- QDateEdit date_start     → calendarPopup, dd/MM/yyyy, disabled jika off
+- QDateEdit date_end       → calendarPopup, dd/MM/yyyy, disabled jika off
 
-METHODS yang harus ada:
-- get_url() → str
-- get_limit() → int  
-- get_start_date() → datetime.date atau None
-- get_end_date() → datetime.date atau None
-- validasi() → str (pesan error) atau "" (jika valid)
+METHODS:
+- get_inputs() → dict {url, limit, filter_aktif, start_date(QDate|None), end_date}
+- validate() → bool + QMessageBox jika error
+- _toggle_date_filter(state) → enable/disable date picker
 
 ATURAN VALIDASI:
 - URL tidak boleh kosong
@@ -230,32 +146,9 @@ TOLONG BANTU:
 [pertanyaan spesifik di sini]
 ```
 
-### Contoh Pertanyaan yang Bagus untuk Kyla
-```
-"Tolong buatkan class InputPanel(QWidget) dengan QGroupBox berjudul
- 'Pengaturan Scraping', berisi:
- - QLineEdit untuk URL dengan placeholder 'https://...'
- - QSpinBox untuk limit (1-500, default 20)
- - QCheckBox 'Filter Tanggal' + 2 QDateEdit (start & end)
- Sertakan method get_url(), get_limit(), get_start_date(), get_end_date()"
-
-"Tolong buatkan fungsi toggle_filter(self, state) yang dipanggil
- saat QCheckBox berubah. Jika checked → date_start & date_end di-enable.
- Jika unchecked → keduanya di-disable (greyed out)."
-
-"Tolong buatkan fungsi validasi(self) yang:
- - Cek URL tidak kosong
- - Cek URL dimulai http:// atau https://
- - Cek (kalau filter aktif) date_end tidak sebelum date_start
- - Return string pesan error, atau '' kalau semua valid"
-
-"Bagaimana cara ambil nilai dari QDateEdit dan convert ke datetime.date
- di Python? Saya bingung karena QDateEdit return QDate, bukan datetime."
-```
-
 ---
 
-## 🟢 AULIA — style.py · README.md · requirements.txt · PDF laporan
+## 🟢 AULIA — style.py · README.md · laporan
 
 ### Template Dasar
 ```
@@ -266,19 +159,19 @@ KONTEKS PROYEK:
 - Framework: PyQt5>=5.15
 - File ini: [style.py / README.md / requirements.txt]
 
-KOMPONEN GUI yang ada (perlu di-styling):
-- QMainWindow, QGroupBox
-- QLineEdit, QSpinBox, QDateEdit, QCheckBox
-- QPushButton (4 tipe: primary/biru, danger/merah, success/hijau, disabled/abu)
-- QProgressBar
-- QTableWidget (dengan alternating row colors)
-- QLabel, QStatusBar
+DARK THEME PALETTE:
+bg: #0F1117, surface: #181C27, surface2: #1E2333
+border: #2A3147, accent: #4F8EF7, teal: #00D4AA
+danger: #F75A5A, text: #E8EAF0, muted: #6B7699
 
-ATURAN STYLING:
-- Pakai QSS (mirip CSS tapi untuk PyQt5)
-- Warna primer bisa dipilih bebas — yang penting konsisten
-- Jangan terlalu fancy, yang penting clean dan rapi
-- apply_style(app) harus dipanggil di main.py SEBELUM MainWindow dibuat
+KOMPONEN GUI (sudah ada):
+- QMainWindow, QWidget, InputPanel (custom bg)
+- QLineEdit, QSpinBox, QDateEdit, QCheckBox
+- QPushButton (4 varian via objectName: default/biru, btn_stop/merah, btn_export_csv&xl/teal, disabled)
+- QProgressBar (gradient chunk biru→teal)
+- QTableWidget (alternating rows, custom header, scrollbar)
+- QWidget#bottom_bar (monospace labels)
+- QMessageBox, QDialog, QTextBrowser
 
 INI KODE SAYA SEKARANG:
 [paste kode di sini]
@@ -287,81 +180,27 @@ TOLONG BANTU:
 [pertanyaan spesifik di sini]
 ```
 
-### Contoh Pertanyaan yang Bagus untuk Aulia
-```
-# style.py
-"Tolong buatkan MAIN_STYLESHEET untuk PyQt5 dengan tema gelap.
- Komponen: QMainWindow, QGroupBox, QLineEdit, QSpinBox, QDateEdit,
- QCheckBox, QPushButton (4 varian), QProgressBar, QTableWidget, QLabel.
- Warna primer: biru #2563EB, background: #1e1e2e"
-
-"Tolong buatkan QSS untuk QPushButton dengan 4 class berbeda:
- .btn-primary (biru), .btn-danger (merah), .btn-success (hijau), .btn-disabled (abu)
- Sertakan juga hover state untuk tiap tombol"
-
-"Tolong buatkan QSS untuk QTableWidget dengan:
- - Header row warna biru
- - Alternating row: putih dan abu muda
- - Selected row warna biru muda
- - Font ukuran 11px"
-
-# README.md
-"Tolong buatkan README.md untuk aplikasi News Scraper dengan:
- - Judul + deskripsi singkat
- - Cara install (pip install -r requirements.txt)
- - Cara menjalankan (python main.py)
- - Daftar fitur
- - Screenshot (placeholder)
- - Struktur file"
-
-# requirements.txt
-"Tolong pastikan requirements.txt ini sudah benar untuk runtime saja:
-selenium, PyQt5>=5.15.0, pandas, openpyxl, webdriver-manager
-Dan requirements-dev.txt untuk: pyqt5-tools"
-```
-
 ---
 
-## 💡 Tips Universal untuk Semua Anggota
+## 💡 Tips Universal
 
-### Kalau AI jawabnya tidak sesuai proyek:
+### Kalau AI jawab tidak sesuai:
 ```
-"Jawaban kamu tidak sesuai kesepakatan tim kami. Di proyek kami:
- - Nama variabel untuk judul adalah 'judul' (bukan 'title')
- - Field tidak ada diisi '-' (bukan None)
- - Pakai PyQt5 (bukan PyQt6 atau tkinter)
- Tolong revisi sesuai ketentuan ini."
-```
-
-### Kalau mau minta penjelasan kode:
-```
-"Tolong jelaskan kode yang kamu buat baris per baris,
- karena saya masih belajar dan harus bisa menjelaskan ke dosen."
+"Jawaban kamu tidak sesuai proyek kami:
+ - Field artikel: judul, tanggal, isi, url, penulis, kategori, gambar_url
+ - Field kosong = '-' (bukan None)
+ - PyQt5 bukan PyQt6, MAX_ISI_CHARS=2000, MIN_JUDUL=15, MIN_ISI=100
+ Tolong revisi."
 ```
 
 ### Kalau ada error:
 ```
-"Saya dapat error ini:
-[paste error message LENGKAP]
+"Error:
+[paste error LENGKAP]
 
-Ini kode yang error:
+Kode:
 [paste kode]
 
-OS saya: [Windows/Mac/Linux]
-Python version: [hasil python --version]
-Tolong bantu debug."
+OS: Linux, Python 3.12, Chrome 145
+Tolong debug."
 ```
-
-### Kalau mau minta review kode:
-```
-"Tolong review kode saya ini.
- Cek apakah sudah sesuai kesepakatan tim:
- 1. Nama field artikel (judul, tanggal, isi, url, penulis, kategori, gambar_url)
- 2. Field kosong pakai '-' bukan None atau ''
- 3. Tidak ada hardcode nama website
- 4. Sudah ada try-except untuk field yang mungkin tidak ada"
-```
-
----
-
-*Simpan file ini di docs/ → buka setiap kali mau minta bantuan AI*

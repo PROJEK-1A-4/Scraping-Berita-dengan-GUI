@@ -11,30 +11,26 @@
 #      Artikel tanggal tidak dikenali → ikuti config.FILTER_INCLUDE_UNKNOWN_DATE
 
 import datetime
+import dateparser
 import config
-
-
-# Mapping nama bulan Indonesia ke nomor bulan
-BULAN_INDONESIA = {
-    "januari": 1, "februari": 2, "maret": 3, "april": 4,
-    "mei": 5, "juni": 6, "juli": 7, "agustus": 8,
-    "september": 9, "oktober": 10, "november": 11, "desember": 12,
-    # Singkatan (dari format "04 Mar 2025")
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4,
-    "jun": 6, "jul": 7, "agu": 8, "ags": 8,  # "mei" sudah ada di atas
-    "sep": 9, "okt": 10, "nov": 11, "des": 12,
-}
 
 
 def parse_tanggal(tanggal_str: str) -> datetime.date | None:
     """
     Parse string tanggal dari artikel menjadi datetime.date.
 
-    Format yang harus didukung:
-        - "04 Mar 2025"   (singkatan Inggris — dari strptime %b)
-        - "4 Maret 2025"  (Indonesia penuh — pakai BULAN_INDONESIA)
-        - "2025-03-04"    (ISO 8601)
-        - "04/03/2025"    (DD/MM/YYYY)
+    Menggunakan library dateparser yang mendukung 200+ bahasa secara otomatis,
+    termasuk Bahasa Indonesia — tanpa perlu hardcode format atau nama bulan.
+
+    Contoh format yang didukung:
+        - "2025-03-04T21:00:42Z"              (ISO 8601 UTC)
+        - "2026/03/05 19:07:34"               (CNN Indonesia)
+        - "Kamis, 5 Maret 2026 | 20:00 WIB"  (Kompas)
+        - "Kamis, 05 Mar 2026 20:00 WIB"      (Detik)
+        - "03 Mar 2026 04:01pm"               (CNA)
+        - "4 Maret 2025"                       (nama bulan Indonesia)
+        - "2025-03-04"                         (ISO date only)
+        - "04/03/2025"                         (DD/MM/YYYY)
 
     Args:
         tanggal_str: string tanggal apa adanya dari website
@@ -47,37 +43,40 @@ def parse_tanggal(tanggal_str: str) -> datetime.date | None:
 
     s = tanggal_str.strip()
 
-    # Format 1: ISO 8601 — "2025-03-04"
-    try:
-        return datetime.datetime.strptime(s, "%Y-%m-%d").date()
-    except ValueError:
-        pass
+    # ── Tahap 1: ISO 8601 (YYYY-...) → strptime (unambiguous, tidak terpengaruh DATE_ORDER) ──
+    import re
+    s_iso = re.sub(
+        r'T(\d{2})-(\d{2})-(\d{2})(\.\d+)?(Z|[+\-]\d{2}:\d{2})?',
+        r'T\1:\2:\3\4\5',
+        s
+    )
+    iso_formats = [
+        "%Y-%m-%dT%H:%M:%S.%f%z",
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y/%m/%d %H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+    ]
+    for fmt in iso_formats:
+        try:
+            return datetime.datetime.strptime(s_iso, fmt).date()
+        except ValueError:
+            pass
 
-    # Format 2: DD/MM/YYYY — "04/03/2025"
-    try:
-        return datetime.datetime.strptime(s, "%d/%m/%Y").date()
-    except ValueError:
-        pass
-
-    # Format 3: "04 Mar 2025" (singkatan bahasa Inggris — strptime %b)
-    try:
-        return datetime.datetime.strptime(s, "%d %b %Y").date()
-    except ValueError:
-        pass
-
-    # Format 4: "4 Maret 2025" (nama bulan Indonesia — replace dulu)
-    s_lower = s.lower()
-    for nama, nomor in BULAN_INDONESIA.items():
-        if nama in s_lower:
-            s_lower = s_lower.replace(nama, str(nomor))
-            break
-    try:
-        return datetime.datetime.strptime(s_lower, "%d %m %Y").date()
-    except ValueError:
-        pass
-
-    # Semua format gagal
-    return None
+    # ── Tahap 2: Format bebas (Indonesia/Inggris) → dateparser ───────────────
+    result = dateparser.parse(
+        s,
+        languages=["id", "en"],
+        settings={
+            "DATE_ORDER":           "DMY",   # DD/MM/YYYY — urutan tanggal Indonesia
+            "RETURN_AS_TIMEZONE_AWARE": False,
+            "PREFER_DAY_OF_MONTH":  "first",
+        },
+    )
+    return result.date() if result else None
 
 
 def filter_by_date(articles: list[dict],

@@ -1,5 +1,4 @@
 import sys
-from pathlib import Path
 
 from PyQt5.QtWidgets import QApplication
 
@@ -14,7 +13,7 @@ def buat_folder_wajib() -> None:
     Dibuat otomatis di sini — user tidak perlu buat manual.
     """
     config.OUTPUT_DIR.mkdir(exist_ok=True)
-    (Path("logs")).mkdir(exist_ok=True)
+    config.LOG_FILE.parent.mkdir(exist_ok=True)
 
 
 def main() -> None:
@@ -32,8 +31,8 @@ def main() -> None:
     # Inisialisasi Qt application
     app = QApplication(sys.argv)
 
-    # TODO Darva: terapkan stylesheet sebelum window dibuat
-    # style.apply_style(app)
+    # Terapkan stylesheet sebelum window dibuat
+    style.apply_style(app)
 
     # Buat dan tampilkan MainWindow
     from gui import MainWindow
