@@ -187,7 +187,67 @@ def handle_pagination(driver: webdriver.Chrome) -> bool:
     Returns:
         bool: True jika berhasil pindah ke halaman berikutnya, False jika tidak ada
     """
-    # TODO Darva: implementasikan deteksi & klik pagination
+    import re
+    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+    from selenium.common.exceptions import (
+        NoSuchElementException, ElementNotInteractableException,
+        ElementClickInterceptedException, StaleElementReferenceException,
+    )
+
+    # ── Strategi 1: <a rel="next"> atau <link rel="next"> ─────────────────
+    for selector in ['a[rel="next"]', 'link[rel="next"]']:
+        try:
+            el = driver.find_element(By.CSS_SELECTOR, selector)
+            next_url = el.get_attribute("href")
+            if next_url:
+                driver.get(next_url)
+                return True
+        except (NoSuchElementException, StaleElementReferenceException):
+            pass
+
+    # ── Strategi 2: Tombol dengan teks "next" / variasi bahasa Indonesia ──
+    NEXT_TEXTS = ["next", "selanjutnya", "berikutnya", "›", "»", ">"]
+    for anchor in driver.find_elements(By.TAG_NAME, "a"):
+        try:
+            text = anchor.text.strip().lower()
+            if text in NEXT_TEXTS:
+                anchor.click()
+                return True
+        except (StaleElementReferenceException,
+                ElementNotInteractableException,
+                ElementClickInterceptedException):
+            continue
+
+    # ── Strategi 3: Konstruksi URL halaman berikutnya dari pola umum ───────
+    current_url = driver.current_url
+    parsed      = urlparse(current_url)
+    qs          = parse_qs(parsed.query, keep_blank_values=True)
+
+    # Pola ?page=N atau ?p=N
+    for param in ("page", "p"):
+        if param in qs:
+            try:
+                current_page    = int(qs[param][0])
+                qs[param]       = [str(current_page + 1)]
+                new_query       = urlencode(qs, doseq=True)
+                next_url        = urlunparse(parsed._replace(query=new_query))
+                driver.get(next_url)
+                return True
+            except (ValueError, Exception):
+                pass
+
+    # Pola /page/N atau /halaman/N
+    for pattern, replacement in [
+        (r"(/page/)(\d+)", lambda m: f"{m.group(1)}{int(m.group(2)) + 1}"),
+        (r"(/halaman/)(\d+)", lambda m: f"{m.group(1)}{int(m.group(2)) + 1}"),
+    ]:
+        new_path, subs = re.subn(pattern, replacement, parsed.path)
+        if subs:
+            next_url = urlunparse(parsed._replace(path=new_path))
+            driver.get(next_url)
+            return True
+
+    # ── Strategi 4: tidak ketemu → sudah halaman terakhir ─────────────────
     return False
 
 
