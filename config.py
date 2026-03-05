@@ -35,5 +35,5 @@ EXCEL_ENGINE = "openpyxl"   # engine untuk export Excel (.xlsx)
 LOG_FORMAT   = "%(asctime)s - %(levelname)s - %(message)s"  # format log
 LOG_LEVEL    = "DEBUG"      # level log: DEBUG, INFO, WARNING, ERROR
 
-# ─── Header CSV/Excel ─────────────────────
-CSV_HEADERS = ["No", "judul", "tanggal", "penulis", "kategori", "isi", "url", "gambar_url"]
+# ─── Header CSV/Excel (urutan WAJIB sama) ─────────────────────
+CSV_HEADERS = ["No", "Judul", "Tanggal", "Penulis", "Kategori", "Isi", "URL", "Gambar_URL"]
