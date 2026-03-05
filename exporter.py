@@ -1,15 +1,4 @@
 # exporter.py
-# ╔══════════════════════════════════════════════════════════════╗
-# ║  TUGAS: Kemal                                                ║
-# ╚══════════════════════════════════════════════════════════════╝
-#
-# Langkah Kemal:
-#   1. Implementasi export_csv() — simpan data ke .csv pakai pandas
-#      encoding utf-8-sig agar Excel bisa baca karakter Indonesia
-#   2. Implementasi export_excel() — simpan ke .xlsx, tambahkan
-#      auto-width kolom supaya tampilannya rapi di Excel
-#   3. Kolom yang ditulis: sesuai config.CSV_HEADERS (urutan WAJIB sama)
-#   4. Tambahkan kolom "No" (nomor urut mulai dari 1)
 
 import pandas as pd
 from pathlib import Path
