@@ -135,7 +135,25 @@ class InputPanel(QWidget):
         # Layout utama
         layout = QVBoxLayout(self)
 
-        # ─── Baris 1: URL Input ──────────────────────────────────
+        # Tambahkan semua sub-layout menggunakan helper methods
+        layout.addLayout(self._create_url_layout())
+        layout.addLayout(self._create_limit_layout())
+        layout.addWidget(self._create_date_filter_layout())
+        layout.addLayout(self._create_date_range_layout())
+
+        # Hubungkan checkbox signal ke toggle method
+        self.checkbox_filter.stateChanged.connect(self._toggle_date_filter)
+
+        # Add stretch di akhir agar widget tidak mengambil full height
+        layout.addStretch()
+
+    def _create_url_layout(self) -> QHBoxLayout:
+        """
+        Buat layout untuk URL input (Baris 1).
+
+        Returns:
+            QHBoxLayout berisi label "URL:" + input_url field
+        """
         url_layout = QHBoxLayout()
         label_url = QLabel("URL:")
         label_url.setFixedWidth(60)
@@ -144,9 +162,15 @@ class InputPanel(QWidget):
         self.input_url.setClearButtonEnabled(True)  # Built-in clear button
         url_layout.addWidget(label_url)
         url_layout.addWidget(self.input_url)
-        layout.addLayout(url_layout)
+        return url_layout
 
-        # ─── Baris 2: Limit Artikel ──────────────────────────────
+    def _create_limit_layout(self) -> QHBoxLayout:
+        """
+        Buat layout untuk limit artikel (Baris 2).
+
+        Returns:
+            QHBoxLayout berisi label "Limit:" + spinbox + "artikel" label
+        """
         limit_layout = QHBoxLayout()
         label_limit = QLabel("Limit:")
         label_limit.setFixedWidth(60)
@@ -162,14 +186,26 @@ class InputPanel(QWidget):
         limit_layout.addWidget(self.input_limit)
         limit_layout.addWidget(label_artikel)
         limit_layout.addStretch()  # Push ke kiri
-        layout.addLayout(limit_layout)
+        return limit_layout
 
-        # ─── Baris 3: Checkbox Filter Tanggal ────────────────────
+    def _create_date_filter_layout(self) -> QCheckBox:
+        """
+        Setup checkbox filter tanggal (Baris 3).
+
+        Returns:
+            QCheckBox dengan tooltip dan default unchecked
+        """
         self.checkbox_filter.setToolTip("Centang untuk mengaktifkan filter tanggal (artikel antara Dari dan Sampai)")
         self.checkbox_filter.setChecked(False)  # Explicit default unchecked
-        layout.addWidget(self.checkbox_filter)
+        return self.checkbox_filter
 
-        # ─── Baris 4: Date Range ────────────────────────────────
+    def _create_date_range_layout(self) -> QHBoxLayout:
+        """
+        Buat layout untuk date range picker (Baris 4).
+
+        Returns:
+            QHBoxLayout berisi label "Dari:" + date_start + label "Sampai:" + date_end
+        """
         date_layout = QHBoxLayout()
         label_dari = QLabel("Dari:")
         label_dari.setFixedWidth(60)
@@ -197,13 +233,7 @@ class InputPanel(QWidget):
         date_layout.addWidget(label_sampai)
         date_layout.addWidget(self.date_end)
         date_layout.addStretch()  # Push ke kiri
-        layout.addLayout(date_layout)
-
-        # ─── Hubungkan checkbox signal ke toggle method ──────────
-        self.checkbox_filter.stateChanged.connect(self._toggle_date_filter)
-
-        # Add stretch di akhir agar widget tidak mengambil full height
-        layout.addStretch()
+        return date_layout
 
     def get_inputs(self) -> dict:
         """
