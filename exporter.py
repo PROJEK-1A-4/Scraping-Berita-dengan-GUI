@@ -22,7 +22,7 @@ def export_csv(data: list[dict], filename: str) -> Path:
         # No kolom sesuai config.CSV_HEADERS
         df = df[config.CSV_HEADERS]
         
-        # Simpan ke CSV dengan encoding utf-8-sig
+        # Simpan ke file CSV dengan encoding utf-8-sig
         df.to_csv(csv_path, encoding=config.CSV_ENCODING, index=False)
         
         logger.log_info(f"CSV exported successfully: {csv_path} ({len(df)} articles)")
