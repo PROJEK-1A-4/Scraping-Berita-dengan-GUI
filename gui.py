@@ -120,6 +120,18 @@ class InputPanel(QWidget):
 
         self._setup_ui()
 
+    def _get_label_font(self) -> QFont:
+        """
+        Dapatkan font styling yang konsisten untuk semua label.
+
+        Returns:
+            QFont dengan ukuran dan weight yang sudah ditetapkan
+        """
+        font = QFont()
+        font.setPointSize(10)
+        font.setWeight(QFont.Medium)  # Semi-bold
+        return font
+
     def _setup_ui(self) -> None:
         """
         Susun semua widget dalam layout.
@@ -132,8 +144,10 @@ class InputPanel(QWidget):
                                     default: hari ini
             - Tampilan rapi — gunakan QHBoxLayout / QVBoxLayout / QFormLayout
         """
-        # Layout utama
+        # Layout utama dengan margin dan spacing
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)  # padding di semua sisi
+        layout.setSpacing(10)  # spacing antar widget
 
         # Tambahkan semua sub-layout menggunakan helper methods
         layout.addLayout(self._create_url_layout())
@@ -155,11 +169,16 @@ class InputPanel(QWidget):
             QHBoxLayout berisi label "URL:" + input_url field
         """
         url_layout = QHBoxLayout()
+        url_layout.setSpacing(8)  # spacing antar widget
+        
         label_url = QLabel("URL:")
         label_url.setFixedWidth(60)
+        label_url.setFont(self._get_label_font())  # Apply label styling
+        
         self.input_url.setPlaceholderText("https://www.cnnindonesia.com")
-        self.input_url.setMinimumHeight(32)
+        self.input_url.setMinimumHeight(36)  # Increased for better visibility
         self.input_url.setClearButtonEnabled(True)  # Built-in clear button
+        
         url_layout.addWidget(label_url)
         url_layout.addWidget(self.input_url)
         return url_layout
@@ -172,16 +191,22 @@ class InputPanel(QWidget):
             QHBoxLayout berisi label "Limit:" + spinbox + "artikel" label
         """
         limit_layout = QHBoxLayout()
+        limit_layout.setSpacing(8)  # spacing antar widget
+        
         label_limit = QLabel("Limit:")
         label_limit.setFixedWidth(60)
+        label_limit.setFont(self._get_label_font())  # Apply label styling
+        
         self.input_limit.setRange(1, 500)
         self.input_limit.setValue(config.DEFAULT_LIMIT)
         self.input_limit.setMinimumHeight(36)   # Sedikit lebih tinggi agar tombol terlihat
-        self.input_limit.setMinimumWidth(100)   # Cukup lebar untuk angka
+        self.input_limit.setMaximumWidth(120)   # Max width untuk spinbox
         self.input_limit.setAlignment(Qt.AlignCenter)  # Angka di tengah
         self.input_limit.setButtonSymbols(QSpinBox.PlusMinus)  # Gunakan simbol +/−
+        
         label_artikel = QLabel("artikel")
-        label_artikel.setStyleSheet("color: #6B7699; font-size: 12px; padding-left: 4px;")
+        label_artikel.setStyleSheet("color: #8A99B6; font-size: 12px; padding-left: 4px; font-weight: 500;")
+        
         limit_layout.addWidget(label_limit)
         limit_layout.addWidget(self.input_limit)
         limit_layout.addWidget(label_artikel)
@@ -207,25 +232,30 @@ class InputPanel(QWidget):
             QHBoxLayout berisi label "Dari:" + date_start + label "Sampai:" + date_end
         """
         date_layout = QHBoxLayout()
+        date_layout.setSpacing(8)  # spacing antar widget
+        
         label_dari = QLabel("Dari:")
         label_dari.setFixedWidth(60)
+        label_dari.setFont(self._get_label_font())  # Apply label styling
         
         self.date_start.setDate(QDate.currentDate())
         self.date_start.setEnabled(False)
         self.date_start.setDisplayFormat("dd MMMM yyyy")  # Format lengkap: 05 Maret 2026
         self.date_start.setLocale(QLocale(QLocale.Indonesian, QLocale.Indonesia))
         self.date_start.setCalendarPopup(True)  # Popup calendar saat diklik
-        self.date_start.setMinimumHeight(32)  # Match other widgets
+        self.date_start.setMinimumHeight(36)  # Match other widgets + 4px
         self.date_start.setMinimumWidth(180)  # Lebar cukup untuk nama bulan
         self.date_start.setToolTip("Pilih tanggal awal (Double-click atau klik icon kalender)")
 
         label_sampai = QLabel("Sampai:")
+        label_sampai.setFont(self._get_label_font())  # Apply label styling
+        
         self.date_end.setDate(QDate.currentDate())
         self.date_end.setEnabled(False)
         self.date_end.setDisplayFormat("dd MMMM yyyy")  # Format lengkap: 05 Maret 2026
         self.date_end.setLocale(QLocale(QLocale.Indonesian, QLocale.Indonesia))
         self.date_end.setCalendarPopup(True)  # Popup calendar saat diklik
-        self.date_end.setMinimumHeight(32)  # Match other widgets
+        self.date_end.setMinimumHeight(36)  # Match other widgets + 4px
         self.date_end.setToolTip("Pilih tanggal akhir (Double-click atau klik icon kalender)")
 
         date_layout.addWidget(label_dari)
