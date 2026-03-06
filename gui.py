@@ -585,7 +585,7 @@ class MainWindow(QMainWindow):
 
         # Daftar anggota tim
         tim = [
-            ("Darva",   "Lead Developer + Reviewer",         "#4F8EF7"),
+            ("Darva Aryasatya Putra Hermawan - 251524006",   "Lead Developer + Reviewer",         "#4F8EF7"),
             ("Kemal",   "Data & Reliability Developer",      "#00D4AA"),
             ("Richard", "GUI Developer (Fungsional)",         "#F7C948"),
             ("Kyla",    "GUI Developer (Input & Filter)",     "#F75A5A"),
