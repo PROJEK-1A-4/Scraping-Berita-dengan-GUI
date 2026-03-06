@@ -590,6 +590,7 @@ class MainWindow(QMainWindow):
             ("Richard Fadhilah Irwandi Putra - 251524028", "GUI Developer (Fungsional)",         "#F7C948"),
             ("Kyla Khansa - 251524018",    "GUI Developer (Input & Filter)",     "#F75A5A"),
             ("Aulia Rahmi Taufik - 251524003",   "UI Polish + Dokumentasi",            "#C084FC"),
+            ("Muhammad Rizqi Sholahuddin - 199105302019031019", "Manager Proyek", "#6B7699"),
         ]
 
         for nama, peran, warna in tim:
