@@ -97,14 +97,30 @@ def _format_tanggal(raw: str) -> str:
 
 class InputPanel(QWidget):
     """
-    Panel input di bagian atas/kiri aplikasi.
-    Berisi: URL input, limit artikel, toggle filter tanggal, date picker.
-
-    TUGAS KYLA:
-        1. _setup_ui() — susun semua widget dalam layout yang rapi
-        2. get_inputs() — kembalikan nilai semua input sebagai dict
-        3. validate() — validasi input sebelum scraping dimulai
-        4. _toggle_date_filter() — enable/disable date picker saat checkbox berubah
+    Panel untuk input user di bagian atas/kiri aplikasi utama.
+    
+    Widget ini mengumpulkan semua parameter yang diperlukan untuk scraping berita:
+        - URL halaman berita (wajib, validated)
+        - Limit jumlah artikel (1-500, default dari config)
+        - Toggle filter tanggal untuk saring artikel by date range
+        - Date picker untuk start/end date (enabled hanya jika filter aktif)
+    
+    Attributes:
+        input_url (QLineEdit): Input field untuk URL halaman berita
+        input_limit (QSpinBox): Spinner untuk limit artikel (1-500)
+        checkbox_filter (QCheckBox): Checkbox untuk toggle date filter
+        date_start (QDateEdit): Date picker untuk tanggal mulai (disabled saat filter off)
+        date_end (QDateEdit): Date picker untuk tanggal selesai (disabled saat filter off)
+    
+    Methods:
+        get_inputs() -> dict: Ambil semua input values
+        validate() -> bool: Validasi input sebelum scraping, return True jika valid
+        _toggle_date_filter(): Enable/disable date pickers tergantung checkbox state
+    
+    Note:
+        - Widget name harus TETAP (MainWindow bergantung pada atribut ini)
+        - Semua input di-normalize sebelum return (URL lowercase scheme, strip whitespace)
+        - Validasi comprehensive: URL domain, limit range, date order
     """
 
     def __init__(self, parent=None):
@@ -122,10 +138,13 @@ class InputPanel(QWidget):
 
     def _get_label_font(self) -> QFont:
         """
-        Dapatkan font styling yang konsisten untuk semua label.
+        Helper method untuk dapatkan font styling yang konsisten di semua label.
+        
+        Digunakan untuk ensure visual consistency antar label di InputPanel.
+        Font: Medium weight (semi-bold), size 10pt untuk readability.
 
         Returns:
-            QFont dengan ukuran dan weight yang sudah ditetapkan
+            QFont dengan pointSize=10 dan weight=Medium
         """
         font = QFont()
         font.setPointSize(10)
@@ -134,15 +153,18 @@ class InputPanel(QWidget):
 
     def _setup_ui(self) -> None:
         """
-        Susun semua widget dalam layout.
-
-        Spesifikasi:
-            - input_url    : placeholder "https://...", full width
-            - input_limit  : range 1–500, default config.DEFAULT_LIMIT
-            - checkbox_filter: default unchecked
-            - date_start, date_end: QDateEdit, disabled saat checkbox off
-                                    default: hari ini
-            - Tampilan rapi — gunakan QHBoxLayout / QVBoxLayout / QFormLayout
+        Setup UI layout untuk InputPanel dengan semua widgets.
+        
+        Layout hierarchy:
+            Main VBoxLayout (12px margin, 10px spacing)
+                ├─ URL layout (QHBoxLayout, 8px spacing)
+                ├─ Limit layout (QHBoxLayout, 8px spacing)
+                ├─ Date filter checkbox
+                └─ Date range layout (QHBoxLayout, 8px spacing)
+        
+        Setiap sub-layout dibuat via private helper method untuk clarity.
+        Signal connections:
+            - checkbox_filter.stateChanged → _toggle_date_filter()
         """
         # Layout utama dengan margin dan spacing
         layout = QVBoxLayout(self)
@@ -163,10 +185,19 @@ class InputPanel(QWidget):
 
     def _create_url_layout(self) -> QHBoxLayout:
         """
-        Buat layout untuk URL input (Baris 1).
+        Buat dan setup layout untuk URL input field.
+        
+        Widget composition:
+            [Label: "URL" (60px)] [Input: QLineEdit - full width, clear button enabled]
+        
+        Placeholder: "https://www.cnnindonesia.com"
+        Min height: 36px untuk visual consistency
+        Features:
+            - Built-in clear button untuk clear URL quickly
+            - Focus management via setFocus() saat validasi error
 
         Returns:
-            QHBoxLayout berisi label "URL:" + input_url field
+            QHBoxLayout siap untuk ditambah ke main layout
         """
         url_layout = QHBoxLayout()
         url_layout.setSpacing(8)  # spacing antar widget
@@ -185,10 +216,24 @@ class InputPanel(QWidget):
 
     def _create_limit_layout(self) -> QHBoxLayout:
         """
-        Buat layout untuk limit artikel (Baris 2).
+        Buat dan setup layout untuk article limit spinner.
+        
+        Widget composition:
+            [Label: "Limit" (60px)] [Spinner: 1-500] [Label: "artikel"]
+        
+        Spinner config:
+            - Range: 1-500 (hard limit)
+            - Default: config.DEFAULT_LIMIT
+            - Height: 36px, Max-width: 120px
+            - Centered text dengan +/− buttons
+        
+        Secondary label "artikel" styling:
+            - Color: #8A99B6 (muted gray)
+            - Font size: 12px, weight: 500
+            - Informative hint tentang apa yang di-limit
 
         Returns:
-            QHBoxLayout berisi label "Limit:" + spinbox + "artikel" label
+            QHBoxLayout siap untuk ditambah ke main layout
         """
         limit_layout = QHBoxLayout()
         limit_layout.setSpacing(8)  # spacing antar widget
@@ -215,10 +260,22 @@ class InputPanel(QWidget):
 
     def _create_date_filter_layout(self) -> QCheckBox:
         """
-        Setup checkbox filter tanggal (Baris 3).
+        Buat dan setup checkbox untuk toggle date filter feature.
+        
+        Behavior:
+            - Default: Unchecked (filter tanggal OFF)
+            - Saat di-check: Enable date_start dan date_end pickers
+            - Saat di-uncheck: Disable date pickers (user tidak bisa edit)
+        
+        Visual/UX:
+            - Tooltip: Jelaskan purpose dari filter
+            - Keyboard accessible via Tab/Space/Enter
+        
+        Signal:
+            - stateChanged → connected ke _toggle_date_filter() di _setup_ui()
 
         Returns:
-            QCheckBox dengan tooltip dan default unchecked
+            QCheckBox instance (bukan layout, tapi widget untuk di-add ke VBox)
         """
         self.checkbox_filter.setToolTip("Centang untuk mengaktifkan filter tanggal (artikel antara Dari dan Sampai)")
         self.checkbox_filter.setChecked(False)  # Explicit default unchecked
@@ -226,10 +283,28 @@ class InputPanel(QWidget):
 
     def _create_date_range_layout(self) -> QHBoxLayout:
         """
-        Buat layout untuk date range picker (Baris 4).
+        Buat dan setup layout untuk date range picker (start & end dates).
+        
+        Widget composition:
+            [Label: "Dari" (60px)] [Date picker start] [Label: "Sampai"] [Date picker end]
+        
+        Date picker features:
+            - Display format: "dd MMMM yyyy" (e.g., "05 Maret 2026")
+            - Locale: Indonesian
+            - Calendar popup: Click icon atau double-click untuk open calendar dialog
+            - Initial value: QDate.currentDate() (hari ini)
+            - Disabled by default (enable hanya saat checkbox_filter checked)
+            - Min height: 36px untuk visual consistency
+        
+        Initial state:
+            - Both disabled (tidak bisa edit sampai checkbox_filter is checked)
+            - Values set tapi tidak bisa dimodifikasi user
+        
+        Note:
+            - Date validation: Done di validate() method (end_date >= start_date)
 
         Returns:
-            QHBoxLayout berisi label "Dari:" + date_start + label "Sampai:" + date_end
+            QHBoxLayout siap untuk ditambah ke main layout
         """
         date_layout = QHBoxLayout()
         date_layout.setSpacing(8)  # spacing antar widget
@@ -267,15 +342,27 @@ class InputPanel(QWidget):
 
     def get_inputs(self) -> dict:
         """
-        Ambil nilai semua input dari widget.
-
+        Ambil dan kembalikan semua input values dari InputPanel widgets.
+        
+        Data collection:
+            1. URL: normalize via _normalize_url() (lowercase scheme, strip whitespace)
+            2. Limit: ambil dari spinner (value selalu 1-500 via QSpinBox range)
+            3. Filter enabled?: ambil state dari checkbox
+            4. Start date: ambil jika filter enabled, else None
+            5. End date: ambil jika filter enabled, else None
+        
+        Normalization:
+            - URL: "HTTPS://example.com" → "https://example.com"
+            - URL: "  https://example.com  " → "https://example.com"
+        
         Returns:
-            dict dengan key:
-                "url"          : str (normalized: strip dan lowercase scheme)
-                "limit"        : int
-                "filter_aktif" : bool
-                "start_date"   : QDate (atau None jika filter off)
-                "end_date"     : QDate (atau None jika filter off)
+            dict {
+                "url"          : str (normalized),
+                "limit"        : int (1-500),
+                "filter_aktif" : bool,
+                "start_date"   : QDate | None,
+                "end_date"     : QDate | None,
+            }
         """
         filter_aktif = self.checkbox_filter.isChecked()
         
@@ -293,13 +380,27 @@ class InputPanel(QWidget):
 
     def _normalize_url(self, url: str) -> str:
         """
-        Normalisasi URL: strip whitespace dan convert scheme ke lowercase.
+        Normalisasi URL untuk consistent handling.
+        
+        Transformations:
+            1. Strip leading/trailing whitespace
+            2. Convert protocol (http/https) ke lowercase
+            3. Preserve domain part as-is (domains case-insensitive, tapi preserve di URL)
+        
+        Examples:
+            "  HTTPS://example.com  " → "https://example.com"
+            "HtTp://Example.com/path" → "http://Example.com/path"
+            "no-protocol-url.com" → "no-protocol-url.com" (unchanged)
+        
+        Use case:
+            - Dipakai di get_inputs() untuk ensure konsisten URL format
+            - Tidak merubah domain (yg penting lowercase protocol)
 
         Args:
-            url: Raw URL string
+            url: Raw URL string dari input field
 
         Returns:
-            Normalized URL dengan scheme lowercase
+            Normalized URL string
         """
         url = url.strip()
         if url.lower().startswith("https://"):
@@ -310,18 +411,38 @@ class InputPanel(QWidget):
 
     def validate(self) -> bool:
         """
-        Validasi input sebelum scraping dimulai.
-        Tampilkan QMessageBox jika ada error.
-
-        Rules:
-            - URL tidak boleh kosong
-            - URL harus diawali "http://" atau "https://"
-            - URL harus memiliki domain yang valid (tidak hanya http://  atau https://)
-            - Jika filter aktif: date_end tidak boleh sebelum date_start
-            - Limit artikel harus dalam range 1-500
+        Validasi semua input dari user sebelum scraping dimulai.
+        
+        Validation rules (dalam urutan prioritas):
+            1. URL tidak boleh kosong
+                Error: "URL tidak boleh kosong!"
+            
+            2. URL harus diawali dengan http:// atau https://
+                Error: "URL harus diawali dengan 'http://' atau 'https://'"
+            
+            3. URL harus memiliki domain yang valid (bukan hanya http:// / https://)
+                Error: "URL harus memiliki domain yang valid!"
+                Contoh invalid: "https://", "http:///", "https://" + whitespace only
+            
+            4. Jika date filter aktif: end_date tidak boleh sebelum start_date
+                (end_date == start_date adalah valid - same day filter)
+                Error: "Tanggal selesai ('Sampai') tidak boleh sebelum tanggal mulai ('Dari')!"
+            
+            5. Limit artikel harus dalam range 1-500
+                Error: "Limit artikel harus antara 1 dan 500!"
+                Note: Ini defensive, QSpinBox sudah enforce range
+        
+        Error handling:
+            - Tampilkan QMessageBox.warning() dengan pesan spesifik
+            - Set focus() ke widget yang error agar user perhatian
+            - Return False jika ada error
+        
+        Success:
+            - Return True jika semua validasi pass
+            - Aman untuk proceed ke scraping
 
         Returns:
-            bool: True jika semua input valid, False jika ada error
+            bool: True jika valid, False jika ada error
         """
         inputs = self.get_inputs()
         
@@ -382,10 +503,29 @@ class InputPanel(QWidget):
 
     def _toggle_date_filter(self, state: int) -> None:
         """
-        Enable/disable date picker sesuai state checkbox filter.
-
+        Toggle enable/disable state dari date picker widgets tergantung checkbox state.
+        
+        Behavior:
+            - Saat checkbox_filter di-check (state=Qt.Checked):
+                → Enable date_start dan date_end
+                → User bisa edit date range
+            
+            - Saat checkbox_filter di-uncheck (state=Qt.Unchecked):
+                → Disable date_start dan date_end
+                → User tidak bisa edit dates (read-only appearance)
+                → get_inputs() akan return None untuk start/end dates
+        
+        Signal connection:
+            - Ini adalah slot yang di-connect ke checkbox_filter.stateChanged signal
+            - Otomatis dipanggil setiap kali checkbox state berubah
+        
+        UX benefit:
+            - Visual feedback: disabled fields terlihat non-editable
+            - Prevent user dari edit date saat filter tidak aktif
+            - Smooth enable/disable tanpa manual button click
+        
         Args:
-            state: Qt.Checked atau Qt.Unchecked
+            state: Qt.Checked (2) atau Qt.Unchecked (0) atau Qt.PartiallyChecked (1)
         """
         aktif = (state == Qt.Checked)
         self.date_start.setEnabled(aktif)
