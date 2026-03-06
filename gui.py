@@ -588,7 +588,7 @@ class MainWindow(QMainWindow):
             ("Darva Aryasatya Putra Hermawan - 251524006",   "Lead Developer + Reviewer",         "#4F8EF7"),
             ("Kemal Melvin Ibrahim - 251524017",   "Data & Reliability Developer",      "#00D4AA"),
             ("Richard Fadhilah Irwandi Putra - 251524028", "GUI Developer (Fungsional)",         "#F7C948"),
-            ("Kyla",    "GUI Developer (Input & Filter)",     "#F75A5A"),
+            ("Kyla Khansa - 251524018",    "GUI Developer (Input & Filter)",     "#F75A5A"),
             ("Aulia",   "UI Polish + Dokumentasi",            "#C084FC"),
         ]
 
