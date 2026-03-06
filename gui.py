@@ -271,7 +271,7 @@ class InputPanel(QWidget):
 
         Returns:
             dict dengan key:
-                "url"          : str
+                "url"          : str (normalized: strip dan lowercase scheme)
                 "limit"        : int
                 "filter_aktif" : bool
                 "start_date"   : QDate (atau None jika filter off)
@@ -279,13 +279,34 @@ class InputPanel(QWidget):
         """
         filter_aktif = self.checkbox_filter.isChecked()
         
+        # Normalize URL: strip whitespace dan convert scheme ke lowercase
+        raw_url = self.input_url.text().strip()
+        normalized_url = self._normalize_url(raw_url) if raw_url else ""
+        
         return {
-            "url"          : self.input_url.text().strip(),
+            "url"          : normalized_url,
             "limit"        : self.input_limit.value(),
             "filter_aktif" : filter_aktif,
             "start_date"   : self.date_start.date() if filter_aktif else None,
             "end_date"     : self.date_end.date() if filter_aktif else None,
         }
+
+    def _normalize_url(self, url: str) -> str:
+        """
+        Normalisasi URL: strip whitespace dan convert scheme ke lowercase.
+
+        Args:
+            url: Raw URL string
+
+        Returns:
+            Normalized URL dengan scheme lowercase
+        """
+        url = url.strip()
+        if url.lower().startswith("https://"):
+            return "https://" + url[8:]
+        elif url.lower().startswith("http://"):
+            return "http://" + url[7:]
+        return url
 
     def validate(self) -> bool:
         """
@@ -295,7 +316,9 @@ class InputPanel(QWidget):
         Rules:
             - URL tidak boleh kosong
             - URL harus diawali "http://" atau "https://"
+            - URL harus memiliki domain yang valid (tidak hanya http://  atau https://)
             - Jika filter aktif: date_end tidak boleh sebelum date_start
+            - Limit artikel harus dalam range 1-500
 
         Returns:
             bool: True jika semua input valid, False jika ada error
@@ -322,7 +345,18 @@ class InputPanel(QWidget):
             self.input_url.setFocus()
             return False
         
-        # Validasi 3: Jika filter aktif, date_end tidak boleh sebelum date_start
+        # Validasi 3: URL harus memiliki domain yang valid (bukan hanya https:// atau http://)
+        url_after_protocol = inputs["url"][8:] if inputs["url"].startswith("https://") else inputs["url"][7:]
+        if not url_after_protocol or url_after_protocol == "/":
+            QMessageBox.warning(
+                self,
+                "Input Error",
+                "URL harus memiliki domain yang valid!\n\nContoh: https://www.cnnindonesia.com"
+            )
+            self.input_url.setFocus()
+            return False
+        
+        # Validasi 4: Jika filter aktif, date_end tidak boleh sebelum date_start (sama boleh)
         if inputs["filter_aktif"]:
             if inputs["end_date"] < inputs["start_date"]:
                 QMessageBox.warning(
@@ -332,6 +366,16 @@ class InputPanel(QWidget):
                 )
                 self.date_end.setFocus()
                 return False
+        
+        # Validasi 5: Limit artikel harus dalam range 1-500
+        if inputs["limit"] < 1 or inputs["limit"] > 500:
+            QMessageBox.warning(
+                self,
+                "Input Error",
+                "Limit artikel harus antara 1 dan 500!"
+            )
+            self.input_limit.setFocus()
+            return False
         
         # Semua validasi berhasil
         return True
