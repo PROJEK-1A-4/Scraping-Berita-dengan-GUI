@@ -46,7 +46,7 @@ QMenu::separator {
     margin: 4px 8px;
 }
 QMenu::item:disabled {
-    color: #3A4566;
+    color: #556080;
 }
 
 /* ═══ QLabel ══════════════════════════════════════════════════════════ */
