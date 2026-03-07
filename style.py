@@ -107,7 +107,8 @@ QLineEdit {
     font-family: "Courier New", monospace;
 }
 QLineEdit:focus {
-    border: 1px solid #4F8EF7;
+    border: 1px solid #6BA3F9;
+    background-color: #222941;
     color: #E8EAF0;
 }
 
@@ -123,7 +124,8 @@ QSpinBox, QDateEdit {
     min-width: 110px;
 }
 QSpinBox:focus, QDateEdit:focus {
-    border: 1px solid #4F8EF7;
+    border: 1px solid #6BA3F9;
+    background-color: #222941;
 }
 QSpinBox::up-button, QSpinBox::down-button {
     background-color: #2A3147;
