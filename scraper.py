@@ -231,24 +231,6 @@ def handle_pagination(driver: webdriver.Chrome) -> bool:
 
 
 def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
-    """
-    Ekstrak semua field dari 1 halaman artikel.
-
-    Args:
-        driver: WebDriver aktif
-        url:    URL artikel yang akan di-scrape
-
-    Returns:
-        dict: artikel dengan semua field (format ARTIKEL_KOSONG sebagai template)
-              Field tidak ditemukan → config.FIELD_KOSONG ("-"), JANGAN crash
-
-    Wajib:
-        - judul, tanggal, isi (field wajib)
-        - url, penulis, kategori, gambar_url (field bonus, boleh "-")
-        - isi dipotong maksimal config.MAX_ISI_CHARS karakter
-        - Gunakan try-except untuk setiap field bonus
-        - Delay config.DEFAULT_DELAY detik setelah scraping
-    """
     from selenium.common.exceptions import TimeoutException
 
     artikel = ARTIKEL_KOSONG.copy()
@@ -257,27 +239,7 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
     try:
         driver.get(url)
     except TimeoutException:
-        pass  # DOM kemungkinan sudah siap, lanjutkan scraping
-
-    # ════════════════════════════════════════════════════════════
-    # STRATEGI EKSTRAKSI — 3 lapisan dari umum ke spesifik:
-    #
-    #   Lapisan 1 (UNIVERSAL) — OpenGraph + Schema.org
-    #     → Standar internasional. SEMUA website berita modern
-    #       mengimplementasikan ini untuk SEO dan social sharing.
-    #       Works on ANY website, not just CNN/Detik/Kompas.
-    #
-    #   Lapisan 2 (SEMI-UMUM) — wildcard [class*='...'] + semantic HTML
-    #     → Menebak nama class berdasarkan pola umum konvensi developer.
-    #     → Tag HTML5 semantik: <article>, <time>, <main>.
-    #
-    #   Lapisan 3 (OPTIMASI) — class spesifik Detik/Kompas/CNN
-    #     → Bukan "hardcode untuk 1 site" tapi shortcut agar lebih cepat
-    #       dan akurat di site yang sudah kita kenal.
-    #     → Jika tidak ada, lapisan 1 & 2 sudah cukup.
-    # ════════════════════════════════════════════════════════════
-
-    # ── Judul ─────────────────────────────────────────────────
+        pass 
     artikel["judul"] = (
         # L1: OpenGraph og:title & Schema.org headline
         _extract_meta(driver, ["og:title", "twitter:title", "headline"])
@@ -293,15 +255,12 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
         ])
     )
 
-    # ── Tanggal ───────────────────────────────────────────────
-    # L1: OpenGraph article:published_time / Schema.org datePublished
     tanggal_meta = _extract_meta(
         driver, ["article:published_time", "datePublished", "publishdate", "createdate", "date", "pubdate"]
     )
     if tanggal_meta != config.FIELD_KOSONG:
         artikel["tanggal"] = tanggal_meta
     else:
-        # Coba ambil atribut datetime dari elemen <time> dulu
         from selenium.common.exceptions import NoSuchElementException
         tanggal_ditemukan = False
         for sel in ["time[datetime]", "time"]:
@@ -331,8 +290,6 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
                 (By.CSS_SELECTOR, "[class*='time']"),           # Wildcard
             ])
 
-    # ── Isi artikel ───────────────────────────────────────────
-    # L1: Schema.org articleBody
     isi = _extract_meta(driver, ["articleBody"])
     if isi == config.FIELD_KOSONG:
         # L2 + L3: wildcard class, semantic HTML, lalu site-specific
@@ -412,18 +369,6 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
 
 
 def is_artikel_valid(artikel: dict) -> bool:
-    """
-    Validasi artikel: pastikan field wajib tidak kosong dan cukup panjang.
-
-    Threshold diambil dari config.py supaya bisa diubah tanpa edit kode ini.
-    Hanya field WAJIB yang dicek (judul + isi). Field bonus boleh "-".
-
-    Args:
-        artikel: dict artikel hasil scrape_article()
-
-    Returns:
-        bool: True jika artikel valid, False jika harus di-skip
-    """
     # Fungsi ini SUDAH FINAL sesuai kesepakatan tim — jangan ubah logikanya!
     return (
         artikel["judul"] not in (config.FIELD_KOSONG, "") and
