@@ -259,16 +259,6 @@ news-scraper/
 ![Export Excel](docs/screenshots/ss7_export.png)
 > File `.xlsx` dengan 8 kolom (termasuk Gambar_URL) dan lebar kolom otomatis.
 
----
-
-> **Cara mengambil screenshot:**
-> 1. Jalankan aplikasi dan buka setiap kondisi di atas
-> 2. Tekan `PrtSc` (atau `Shift+PrtSc` di Linux untuk pilih area)
-> 3. Simpan file ke folder `docs/screenshots/` dengan nama sesuai di atas
->    (contoh: `ss1_awal.png`, `ss2_filter.png`, dst.)
-
----
-
 ## 👥 Tim Pengembang
 
 | Nama | Peran | File |
