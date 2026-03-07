@@ -172,9 +172,15 @@ main.py  ─────── Entry point: buat folder, setup logger, apply sty
 
 | No | Tampilan | File |
 |----|----------|------|
-| 1 | Tampilan awal — window sebelum scraping | `docs/screenshots/ss1_awal.png` |
-| 2 | Saat scraping — progress bar aktif | `docs/screenshots/ss2_scraping.png` |
-| 3 | Selesai — tabel penuh artikel | `docs/screenshots/ss3_selesai.png` |
+| 1 | Tampilan awal — window sebelum scraping | `docs/screenshots/ss1_awal.jpg` |
+| 2 | Saat scraping — progress bar aktif | `docs/screenshots/ss2_scraping.jpg` |
+| 3 | Selesai — tabel penuh artikel | `docs/screenshots/ss3_selesai.jpg` |
+| 4 | Dialog detail artikel (bonus) | `docs/screenshots/ss4_detail.jpg` |
+| 5 | Hasil export Excel (bonus) | `docs/screenshots/ss5_excel.jpg` |
+| 6 | Dialog pengaturan scraping | `docs/screenshots/ss6_pengaturan.jpg` |
+| 7 | Dialog tentang aplikasi | `docs/screenshots/ss7_tentang_aplikasi.jpg` |
+| 8 | Dialog tim pengembang | `docs/screenshots/ss8_tim_pengembang.jpg` |
+| 9 | Hasil export CSV | `docs/screenshots/ss9_export_csv.jpg` |
 
 > **Catatan:** Screenshot diambil setelah semua fitur terintegrasi.
 
