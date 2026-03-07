@@ -23,19 +23,6 @@ ARTIKEL_KOSONG = {
 
 
 def setup_driver() -> webdriver.Chrome:
-    """
-    Buat dan kembalikan Selenium WebDriver (headless Chrome).
-
-    Konfigurasi yang WAJIB ada:
-        - Headless mode (dari config.HEADLESS)
-        - User-Agent header (dari config.USER_AGENT)
-        - --no-sandbox         (wajib di Linux)
-        - --disable-dev-shm-usage  (cegah crash di Linux)
-        - Page load timeout (dari config.PAGE_LOAD_WAIT)
-
-    Returns:
-        webdriver.Chrome: driver yang siap dipakai
-    """
     options = Options()
     options.page_load_strategy = "eager"  # berhenti tunggu saat DOM siap, abaikan resource lambat
 
@@ -54,17 +41,6 @@ def setup_driver() -> webdriver.Chrome:
 
 
 def _extract_text(driver: webdriver.Chrome, selectors: list[tuple], default: str = "-") -> str:
-    """
-    Helper: coba beberapa selector CSS/XPath secara berurutan, kembalikan teks pertama yang ketemu.
-
-    Args:
-        driver:    WebDriver aktif
-        selectors: list of (By.xxx, "selector_string"), dicoba dari indeks 0
-        default:   nilai kembalian jika semua selector gagal
-
-    Returns:
-        str: teks elemen pertama yang ditemukan, atau default jika tidak ada
-    """
     from selenium.common.exceptions import NoSuchElementException
 
     for by, value in selectors:
@@ -113,17 +89,6 @@ def _extract_meta(driver: webdriver.Chrome, names: list[str], default: str = "-"
 
 
 def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
-    """
-    Kumpulkan semua link artikel dari URL (termasuk pagination) sampai limit tercapai.
-
-    Args:
-        driver: WebDriver aktif
-        url:    URL halaman daftar berita
-        limit:  maksimal jumlah link yang dikumpulkan
-
-    Returns:
-        list[str]: daftar URL artikel (full URL, bukan relative)
-    """
     from urllib.parse import urlparse, urljoin
     from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
 
@@ -131,12 +96,8 @@ def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
     seen: set[str] = set()
     parsed_input  = urlparse(url)
     base          = f"{parsed_input.scheme}://{parsed_input.netloc}"
-
-    # Base domain untuk filter same-domain: ambil 2 segmen terakhir
-    # Contoh: "nasional.kompas.com" → "kompas.com"
-    #          "www.cnnindonesia.com" → "cnnindonesia.com"
     netloc_parts = parsed_input.netloc.split(".")
-    base_domain  = ".".join(netloc_parts[-2:])  # e.g. "kompas.com"
+    base_domain  = ".".join(netloc_parts[-2:]) 
 
     # Keyword yang menandakan URL bukan artikel (diambil dari config.py)
     NON_ARTIKEL_KW = config.NON_ARTIKEL_KEYWORDS
@@ -205,18 +166,6 @@ def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
 
 
 def handle_pagination(driver: webdriver.Chrome) -> bool:
-    """
-    Deteksi dan klik tombol "halaman berikutnya" jika ada.
-
-    Strategi (urutan prioritas — JANGAN hardcode class/id per website!):
-        1. Cari <a rel="next"> atau <link rel="next">
-        2. Cari teks tombol: "Next", "Selanjutnya", "›", "»", "Berikutnya"
-        3. Cari pola URL: ?page=N, ?p=N, /page/N, /halaman/N
-        4. Tidak ketemu → return False (sudah halaman terakhir)
-
-    Returns:
-        bool: True jika berhasil pindah ke halaman berikutnya, False jika tidak ada
-    """
     import re
     from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
     from selenium.common.exceptions import (
