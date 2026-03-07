@@ -1,5 +1,3 @@
-# exporter.py
-
 import pandas as pd
 from pathlib import Path
 import config
@@ -44,7 +42,6 @@ def export_excel(data: list[dict], filename: str) -> Path:
         df = pd.DataFrame(data)
         df.insert(0, "No", range(1, len(df) + 1))
 
-        # Rename kolom dari key dict (lowercase) ke header tampilan (blueprint)
         RENAME_MAP = {
             "judul": "Judul", "tanggal": "Tanggal", "penulis": "Penulis",
             "kategori": "Kategori", "isi": "Isi", "url": "URL", "gambar_url": "Gambar_URL",
