@@ -358,6 +358,29 @@ QToolTip {
     padding: 6px 8px;
     font-size: 11px;
 }
+
+/* ═══ QScrollArea/QScrollBar (polish kecil, non-fungsional) ═══════════ */
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+QScrollBar:vertical {
+    background: #181C27;
+    width: 8px;
+    border-radius: 4px;
+    margin: 2px;
+}
+QScrollBar::handle:vertical {
+    background: #2A3147;
+    border-radius: 4px;
+    min-height: 24px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #4F8EF7;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
 """
 
 
