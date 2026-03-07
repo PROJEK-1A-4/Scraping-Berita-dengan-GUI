@@ -777,17 +777,6 @@ class MainWindow(QMainWindow):
         pass
 
     def tambah_baris(self, artikel: dict) -> None:
-        """
-        Tambahkan 1 artikel valid ke tabel dan self.data_hasil.              (DONE)
-
-        Args:
-            artikel: dict artikel (format kesepakatan tim)
-
-        Urutan kolom tabel: #, Judul, Tanggal, Penulis, Kategori, Isi (preview), URL
-        (double-click baris untuk lihat detail lengkap termasuk gambar)
-        """
-        # TODO Richard:                                                      (DONE)
-
         # self.data_hasil.append(artikel)
         self.data_hasil.append(artikel)
         # row = self.tabel.rowCount()
@@ -840,13 +829,6 @@ class MainWindow(QMainWindow):
         pass
 
     def _lihat_detail(self, row: int, col: int) -> None:
-        """
-        Tampilkan dialog popup isi lengkap artikel saat baris di-double-click.
-
-        Args:
-            row: indeks baris yang diklik
-            col: indeks kolom yang diklik (tidak dipakai)
-        """
         if row >= len(self.data_hasil):
             return
 
@@ -921,7 +903,6 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     def export_csv(self) -> None:
-        """Panggil exporter.export_csv() dengan self.data_hasil."""
         try:
             path = exporter.export_csv(self.data_hasil, "hasil_scraping")
             QMessageBox.information(self, "Sukses", f"Data berhasil diexport ke CSV:\n{path}")
@@ -929,7 +910,6 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Export Gagal", str(e))
 
     def export_excel(self) -> None:
-        """Panggil exporter.export_excel() dengan self.data_hasil."""
         try:
             path = exporter.export_excel(self.data_hasil, "hasil_scraping")
             QMessageBox.information(self, "Sukses", f"Data berhasil diexport ke Excel:\n{path}")
