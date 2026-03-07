@@ -1,34 +1,3 @@
-# style.py
-# ╔══════════════════════════════════════════════════════════════╗
-# ║  TUGAS: Aulia                                               ║
-# ╚══════════════════════════════════════════════════════════════╝
-#
-# Langkah Aulia:
-#   1. Isi MAIN_STYLESHEET dengan QSS (Qt Style Sheet) untuk styling seluruh app
-#   2. apply_style() sudah siap — kamu hanya perlu mengisi MAIN_STYLESHEET
-#
-# Elemen yang perlu di-styling (lihat gui.py untuk nama widget):
-#   - QMainWindow, QWidget  → background color
-#   - QTableWidget          → header, row, alternating colors
-#   - QPushButton           → warna tombol scraping, stop, export
-#   - QProgressBar          → warna bar progress
-#   - QLineEdit             → URL input field
-#   - QLabel                → font, warna teks status
-#   - QSpinBox, QDateEdit   → input number dan tanggal
-#
-# Referensi QSS: https://doc.qt.io/qt-5/stylesheet-reference.html
-# Contoh selector: QPushButton { background-color: #4CAF50; color: white; }
-#                  QPushButton:hover { background-color: #45a049; }
-#                  QPushButton:disabled { background-color: #cccccc; }
-
-
-# Aulia: MAIN_STYLESHEET — QSS styling untuk seluruh aplikasi
-# Dark theme sesuai gui-mockup.html
-# Palette:
-#   bg:       #0F1117   surface:  #181C27   surface2: #1E2333
-#   border:   #2A3147   accent:   #4F8EF7   accent2:  #00D4AA
-#   danger:   #F75A5A   text:     #E8EAF0   muted:    #6B7699
-
 MAIN_STYLESHEET = """
 /* ═══ Global ═════════════════════════════════════════════════════════ */
 QMainWindow, QWidget {
