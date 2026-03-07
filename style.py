@@ -210,7 +210,7 @@ QPushButton:pressed {
 }
 QPushButton:disabled {
     background-color: #1E2333;
-    color: #3A4566;
+    color: #556080;
     border: 1px solid #2A3147;
 }
 
@@ -225,7 +225,7 @@ QPushButton#btn_stop:hover {
 }
 QPushButton#btn_stop:disabled {
     background-color: #1E2333;
-    color: #3A4566;
+    color: #556080;
     border: 1px solid #2A3147;
 }
 
@@ -240,7 +240,7 @@ QPushButton#btn_export_csv:hover, QPushButton#btn_export_xl:hover {
 }
 QPushButton#btn_export_csv:disabled, QPushButton#btn_export_xl:disabled {
     background-color: #1E2333;
-    color: #3A4566;
+    color: #556080;
     border: 1px solid #2A3147;
 }
 
