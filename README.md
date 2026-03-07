@@ -70,6 +70,17 @@ python3 main.py
 6. **Double-click** baris untuk lihat detail lengkap (gambar + isi 2000ch)
 7. Klik **↓ Export CSV** atau **↓ Export Excel** untuk menyimpan data
 
+### Lokasi File Hasil Export
+
+- CSV: `output/hasil_scraping.csv`
+- Excel: `output/hasil_scraping.xlsx`
+
+### Kendala Umum (Intermiten)
+
+- Jika muncul `script timeout`, biasanya karena halaman website sedang lambat memuat skrip (iklan/tracker).
+- Solusi cepat: jalankan ulang scraping, kecilkan limit artikel (mis. 5-10), atau coba URL kategori lain.
+- Ini bukan error logika aplikasi dan bisa bersifat sementara tergantung kondisi website/jaringan.
+
 ---
 
 ## 📁 Struktur Proyek
@@ -127,7 +138,11 @@ Lapisan 3 (OPTIMASI)     — class spesifik per website yang dikenal
 
 | Tampilan Awal | Saat Scraping | Hasil Selesai |
 |:---:|:---:|:---:|
-| ![Awal](docs/screenshots/ss1_awal.png) | ![Scraping](docs/screenshots/ss2_scraping.png) | ![Selesai](docs/screenshots/ss3_selesai.png) |
+| ![Awal](docs/screenshots/ss1_awal.jpg) | ![Scraping](docs/screenshots/ss2_scraping.jpg) | ![Selesai](docs/screenshots/ss3_selesai.jpg) |
+
+| Dialog Detail (Bonus) | Export Excel (Bonus) |
+|:---:|:---:|
+| ![Detail](docs/screenshots/ss4_detail.jpg) | ![Excel](docs/screenshots/ss5_excel.jpg) |
 
 ---
 
