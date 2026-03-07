@@ -24,6 +24,7 @@ def export_csv(data: list[dict], filename: str) -> Path:
         df.rename(columns=RENAME_MAP, inplace=True)
         df = df[config.CSV_HEADERS]
         
+        # Simpan ke file CSV dengan encoding utf-8-sig
         df.to_csv(csv_path, encoding=config.CSV_ENCODING, index=False)
         
         logger.log_info(f"CSV exported successfully: {csv_path} ({len(df)} articles)")
