@@ -297,6 +297,19 @@ QTableWidget QScrollBar::handle:vertical {
 QTableWidget QScrollBar::handle:vertical:hover {
     background: #4F8EF7;
 }
+QTableWidget QScrollBar:horizontal {
+    background: #181C27;
+    height: 8px;
+    border-radius: 4px;
+}
+QTableWidget QScrollBar::handle:horizontal {
+    background: #2A3147;
+    border-radius: 4px;
+    min-width: 20px;
+}
+QTableWidget QScrollBar::handle:horizontal:hover {
+    background: #4F8EF7;
+}
 
 /* ═══ QProgressBar ═════════════════════════════════════════════════════ */
 QProgressBar {
