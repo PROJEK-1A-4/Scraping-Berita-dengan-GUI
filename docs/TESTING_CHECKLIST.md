@@ -143,11 +143,11 @@ Untuk setiap website:
 
 ### Screenshot (simpan di docs/screenshots/)
 ```
-[ ] SS 1 — Tampilan awal: dark theme, semua komponen terlihat
-[ ] SS 2 — Saat scraping: progress bar gradient aktif, data masuk
-[ ] SS 3 — Selesai: tabel penuh artikel, bottom bar SIAP
-[ ] SS 4 (bonus) — Dialog detail: gambar + isi + meta
-[ ] SS 5 (bonus) — Hasil export terbuka di Excel
+[x] SS 1 — Tampilan awal: dark theme, semua komponen terlihat
+[x] SS 2 — Saat scraping: progress bar gradient aktif, data masuk
+[x] SS 3 — Selesai: tabel penuh artikel, bottom bar SIAP
+[x] SS 4 (bonus) — Dialog detail: gambar + isi + meta
+[x] SS 5 (bonus) — Hasil export terbuka di Excel
 ```
 
 ---
