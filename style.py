@@ -349,6 +349,15 @@ QTextBrowser {
     font-size: 13px;
     padding: 8px;
 }
+
+/* ═══ QToolTip (polish kecil, non-fungsional) ═════════════════════════ */
+QToolTip {
+    background-color: #1E2333;
+    color: #E8EAF0;
+    border: 1px solid #2A3147;
+    padding: 6px 8px;
+    font-size: 11px;
+}
 """
 
 
