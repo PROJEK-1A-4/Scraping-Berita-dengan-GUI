@@ -1,16 +1,3 @@
-# gui.py
-# ╔══════════════════════════════════════════════════════════════╗
-# ║  TUGAS: Kyla (InputPanel) + Richard (MainWindow)            ║
-# ╚══════════════════════════════════════════════════════════════╝
-#
-# FILE INI DIBAGI DUA:
-#   - Bagian atas (≈ baris 30–110) → TUGAS KYLA: class InputPanel
-#   - Bagian bawah (≈ baris 115+)  → TUGAS RICHARD: class MainWindow
-#
-# Cara kolaborasi:
-#   - Kyla kerjakan di branch dev/kyla, Richard di dev/richard
-#   - Kalau edit baris yang sama, koordinasi dulu biar tidak konflik!
-
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QTableWidget, QTableWidgetItem,
@@ -69,10 +56,10 @@ def _format_tanggal(raw: str) -> str:
         "%Y-%m-%dT%H:%M:%S",            # 2026-03-05T21:00:42
         "%Y/%m/%d %H:%M:%S",            # 2026/03/05 19:07:34 (CNN Indonesia)
         "%Y-%m-%d %H:%M:%S",            # 2026-03-05 21:00:42
-        "%Y-%m-%d",                      # 2026-03-05
+        "%Y-%m-%d",                     # 2026-03-05
         "%d %b %Y %I:%M%p",             # 03 Mar 2026 04:01pm (CNA)
         "%d %b %Y %I:%M %p",            # 03 Mar 2026 04:01 pm
-        "%d %b %Y",                      # 03 Mar 2026
+        "%d %b %Y",                     # 03 Mar 2026
     ]
 
     for fmt in formats:
@@ -90,23 +77,7 @@ def _format_tanggal(raw: str) -> str:
     # Fallback: kembalikan apa adanya
     return raw
 
-
-# ══════════════════════════════════════════════════════════════
-#  BAGIAN KYLA — InputPanel
-# ══════════════════════════════════════════════════════════════
-
 class InputPanel(QWidget):
-    """
-    Panel input di bagian atas/kiri aplikasi.
-    Berisi: URL input, limit artikel, toggle filter tanggal, date picker.
-
-    TUGAS KYLA:
-        1. _setup_ui() — susun semua widget dalam layout yang rapi
-        2. get_inputs() — kembalikan nilai semua input sebagai dict
-        3. validate() — validasi input sebelum scraping dimulai
-        4. _toggle_date_filter() — enable/disable date picker saat checkbox berubah
-    """
-
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -120,76 +91,101 @@ class InputPanel(QWidget):
 
         self._setup_ui()
 
+    def _get_label_font(self) -> QFont:
+        font = QFont()
+        font.setPointSize(10)
+        font.setWeight(QFont.Medium)  # Semi-bold
+        return font
+
     def _setup_ui(self) -> None:
-        """
-        Susun semua widget dalam layout.
-
-        Spesifikasi:
-            - input_url    : placeholder "https://...", full width
-            - input_limit  : range 1–500, default config.DEFAULT_LIMIT
-            - checkbox_filter: default unchecked
-            - date_start, date_end: QDateEdit, disabled saat checkbox off
-                                    default: hari ini
-            - Tampilan rapi — gunakan QHBoxLayout / QVBoxLayout / QFormLayout
-        """
-        # Layout utama
+        # Layout utama dengan margin dan spacing
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)  # padding di semua sisi
+        layout.setSpacing(10)  # spacing antar widget
 
-        # ─── Baris 1: URL Input ──────────────────────────────────
+        # Tambahkan semua sub-layout menggunakan helper methods
+        layout.addLayout(self._create_url_layout())
+        layout.addLayout(self._create_limit_layout())
+        layout.addWidget(self._create_date_filter_layout())
+        layout.addLayout(self._create_date_range_layout())
+
+        # Hubungkan checkbox signal ke toggle method
+        self.checkbox_filter.stateChanged.connect(self._toggle_date_filter)
+
+        # Add stretch di akhir agar widget tidak mengambil full height
+        layout.addStretch()
+
+    def _create_url_layout(self) -> QHBoxLayout:
         url_layout = QHBoxLayout()
+        url_layout.setSpacing(8)  # spacing antar widget
+        
         label_url = QLabel("URL:")
         label_url.setFixedWidth(60)
+        label_url.setFont(self._get_label_font())  # Apply label styling
+        
         self.input_url.setPlaceholderText("https://www.cnnindonesia.com")
-        self.input_url.setMinimumHeight(32)
+        self.input_url.setMinimumHeight(36)  # Increased for better visibility
         self.input_url.setClearButtonEnabled(True)  # Built-in clear button
+        
         url_layout.addWidget(label_url)
         url_layout.addWidget(self.input_url)
-        layout.addLayout(url_layout)
+        return url_layout
 
-        # ─── Baris 2: Limit Artikel ──────────────────────────────
+    def _create_limit_layout(self) -> QHBoxLayout:
         limit_layout = QHBoxLayout()
+        limit_layout.setSpacing(8)  # spacing antar widget
+        
         label_limit = QLabel("Limit:")
         label_limit.setFixedWidth(60)
+        label_limit.setFont(self._get_label_font())  # Apply label styling
+        
         self.input_limit.setRange(1, 500)
         self.input_limit.setValue(config.DEFAULT_LIMIT)
         self.input_limit.setMinimumHeight(36)   # Sedikit lebih tinggi agar tombol terlihat
-        self.input_limit.setMinimumWidth(100)   # Cukup lebar untuk angka
+        self.input_limit.setMaximumWidth(120)   # Max width untuk spinbox
         self.input_limit.setAlignment(Qt.AlignCenter)  # Angka di tengah
         self.input_limit.setButtonSymbols(QSpinBox.PlusMinus)  # Gunakan simbol +/−
+        
         label_artikel = QLabel("artikel")
-        label_artikel.setStyleSheet("color: #6B7699; font-size: 12px; padding-left: 4px;")
+        label_artikel.setStyleSheet("color: #8A99B6; font-size: 12px; padding-left: 4px; font-weight: 500;")
+        
         limit_layout.addWidget(label_limit)
         limit_layout.addWidget(self.input_limit)
         limit_layout.addWidget(label_artikel)
         limit_layout.addStretch()  # Push ke kiri
-        layout.addLayout(limit_layout)
+        return limit_layout
 
-        # ─── Baris 3: Checkbox Filter Tanggal ────────────────────
+    def _create_date_filter_layout(self) -> QCheckBox:
         self.checkbox_filter.setToolTip("Centang untuk mengaktifkan filter tanggal (artikel antara Dari dan Sampai)")
         self.checkbox_filter.setChecked(False)  # Explicit default unchecked
-        layout.addWidget(self.checkbox_filter)
+        return self.checkbox_filter
 
-        # ─── Baris 4: Date Range ────────────────────────────────
+    def _create_date_range_layout(self) -> QHBoxLayout:
         date_layout = QHBoxLayout()
+        date_layout.setSpacing(8)  # spacing antar widget
+        
         label_dari = QLabel("Dari:")
         label_dari.setFixedWidth(60)
+        label_dari.setFont(self._get_label_font())  # Apply label styling
         
         self.date_start.setDate(QDate.currentDate())
         self.date_start.setEnabled(False)
         self.date_start.setDisplayFormat("dd MMMM yyyy")  # Format lengkap: 05 Maret 2026
         self.date_start.setLocale(QLocale(QLocale.Indonesian, QLocale.Indonesia))
         self.date_start.setCalendarPopup(True)  # Popup calendar saat diklik
-        self.date_start.setMinimumHeight(32)  # Match other widgets
+        self.date_start.setMinimumHeight(36)  # Match other widgets + 4px
         self.date_start.setMinimumWidth(180)  # Lebar cukup untuk nama bulan
         self.date_start.setToolTip("Pilih tanggal awal (Double-click atau klik icon kalender)")
 
         label_sampai = QLabel("Sampai:")
+        label_sampai.setFont(self._get_label_font())  # Apply label styling
+        
         self.date_end.setDate(QDate.currentDate())
         self.date_end.setEnabled(False)
         self.date_end.setDisplayFormat("dd MMMM yyyy")  # Format lengkap: 05 Maret 2026
         self.date_end.setLocale(QLocale(QLocale.Indonesian, QLocale.Indonesia))
         self.date_end.setCalendarPopup(True)  # Popup calendar saat diklik
-        self.date_end.setMinimumHeight(32)  # Match other widgets
+        self.date_end.setMinimumHeight(36)  # Match other widgets + 4px
         self.date_end.setToolTip("Pilih tanggal akhir (Double-click atau klik icon kalender)")
 
         date_layout.addWidget(label_dari)
@@ -197,49 +193,32 @@ class InputPanel(QWidget):
         date_layout.addWidget(label_sampai)
         date_layout.addWidget(self.date_end)
         date_layout.addStretch()  # Push ke kiri
-        layout.addLayout(date_layout)
-
-        # ─── Hubungkan checkbox signal ke toggle method ──────────
-        self.checkbox_filter.stateChanged.connect(self._toggle_date_filter)
-
-        # Add stretch di akhir agar widget tidak mengambil full height
-        layout.addStretch()
+        return date_layout
 
     def get_inputs(self) -> dict:
-        """
-        Ambil nilai semua input dari widget.
-
-        Returns:
-            dict dengan key:
-                "url"          : str
-                "limit"        : int
-                "filter_aktif" : bool
-                "start_date"   : QDate (atau None jika filter off)
-                "end_date"     : QDate (atau None jika filter off)
-        """
         filter_aktif = self.checkbox_filter.isChecked()
         
+        # Normalize URL: strip whitespace dan convert scheme ke lowercase
+        raw_url = self.input_url.text().strip()
+        normalized_url = self._normalize_url(raw_url) if raw_url else ""
+        
         return {
-            "url"          : self.input_url.text().strip(),
+            "url"          : normalized_url,
             "limit"        : self.input_limit.value(),
             "filter_aktif" : filter_aktif,
             "start_date"   : self.date_start.date() if filter_aktif else None,
             "end_date"     : self.date_end.date() if filter_aktif else None,
         }
 
+    def _normalize_url(self, url: str) -> str:
+        url = url.strip()
+        if url.lower().startswith("https://"):
+            return "https://" + url[8:]
+        elif url.lower().startswith("http://"):
+            return "http://" + url[7:]
+        return url
+
     def validate(self) -> bool:
-        """
-        Validasi input sebelum scraping dimulai.
-        Tampilkan QMessageBox jika ada error.
-
-        Rules:
-            - URL tidak boleh kosong
-            - URL harus diawali "http://" atau "https://"
-            - Jika filter aktif: date_end tidak boleh sebelum date_start
-
-        Returns:
-            bool: True jika semua input valid, False jika ada error
-        """
         inputs = self.get_inputs()
         
         # Validasi 1: URL tidak boleh kosong
@@ -262,7 +241,18 @@ class InputPanel(QWidget):
             self.input_url.setFocus()
             return False
         
-        # Validasi 3: Jika filter aktif, date_end tidak boleh sebelum date_start
+        # Validasi 3: URL harus memiliki domain yang valid (bukan hanya https:// atau http://)
+        url_after_protocol = inputs["url"][8:] if inputs["url"].startswith("https://") else inputs["url"][7:]
+        if not url_after_protocol or url_after_protocol == "/":
+            QMessageBox.warning(
+                self,
+                "Input Error",
+                "URL harus memiliki domain yang valid!\n\nContoh: https://www.cnnindonesia.com"
+            )
+            self.input_url.setFocus()
+            return False
+        
+        # Validasi 4: Jika filter aktif, date_end tidak boleh sebelum date_start (sama boleh)
         if inputs["filter_aktif"]:
             if inputs["end_date"] < inputs["start_date"]:
                 QMessageBox.warning(
@@ -273,16 +263,20 @@ class InputPanel(QWidget):
                 self.date_end.setFocus()
                 return False
         
+        # Validasi 5: Limit artikel harus dalam range 1-500
+        if inputs["limit"] < 1 or inputs["limit"] > 500:
+            QMessageBox.warning(
+                self,
+                "Input Error",
+                "Limit artikel harus antara 1 dan 500!"
+            )
+            self.input_limit.setFocus()
+            return False
+        
         # Semua validasi berhasil
         return True
 
     def _toggle_date_filter(self, state: int) -> None:
-        """
-        Enable/disable date picker sesuai state checkbox filter.
-
-        Args:
-            state: Qt.Checked atau Qt.Unchecked
-        """
         aktif = (state == Qt.Checked)
         self.date_start.setEnabled(aktif)
         self.date_end.setEnabled(aktif)
@@ -293,22 +287,6 @@ class InputPanel(QWidget):
 # ══════════════════════════════════════════════════════════════
 
 class MainWindow(QMainWindow):
-    """
-    Jendela utama aplikasi News Scraper.
-
-    TUGAS RICHARD:
-        1. _setup_ui()        — susun tabel, progress bar, tombol, label dalam layout
-        2. _connect_signals() — hubungkan sinyal worker ke slot GUI
-        3. mulai_scraping()   — validasi input lalu start worker
-        4. stop_scraping()    — panggil worker.stop()
-        5. tambah_baris()     — tambahkan 1 artikel ke tabel
-        6. update_progress()  — update progress bar
-        7. export_csv()       — panggil exporter.export_csv()
-        8. export_excel()     — panggil exporter.export_excel()
-
-    PENTING: Simpan worker di self.worker (BUKAN variabel lokal!)
-    """
-
     # Urutan kolom sesuai mockup: #, Judul, Tanggal, Penulis, Kategori, Isi (preview), URL
     # Kolom Gambar dihapus dari tabel — gambar ditampilkan di dialog detail (double-click)
     # CATATAN: Berbeda dengan CSV_HEADERS di config.py yang menyertakan kolom Gambar_URL untuk export
@@ -346,11 +324,7 @@ class MainWindow(QMainWindow):
         self._setup_menu_bar()
         self._setup_ui()
         self._connect_signals()
-        self._set_state_idle()   # set initial button states
-
-    # ══════════════════════════════════════════════════════════
-    #  MENU BAR
-    # ══════════════════════════════════════════════════════════
+        self._set_state_idle()  
 
     def _setup_menu_bar(self) -> None:
         """Buat menu bar: File, Pengaturan, Tentang."""
@@ -473,7 +447,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(form)
         layout.addStretch()
 
-        # ─── Tombol ───────────────────────────────────────────
+        # Tombol Simpan & Batal
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
@@ -503,7 +477,6 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     def _buka_tentang(self) -> None:
-        """Buka dialog Tentang Aplikasi."""
         dialog = QDialog(self)
         dialog.setWindowTitle("Tentang Aplikasi")
         dialog.setFixedSize(config.DIALOG_W, config.DIALOG_H)
@@ -562,7 +535,6 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     def _buka_tim(self) -> None:
-        """Buka dialog Tim Pengembang."""
         dialog = QDialog(self)
         dialog.setWindowTitle("Tim Pengembang")
         dialog.resize(config.DIALOG_W + 180, config.DIALOG_H + 220)
@@ -654,17 +626,6 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     def _setup_ui(self) -> None:
-        """
-        Susun semua widget dalam layout utama.                              (DONE)
-
-        Spesifikasi:
-            - self.tabel: 7 kolom (KOLOM_TABEL), stretch ke lebar window    (DONE)
-            - self.progress_bar: range 0–100                                (DONE)
-            - Tombol scrape: di kiri, stop: di sebelah scrape               (DONE)
-            - Tombol export: di kanan, disabled sampai ada data             (DONE)
-            - label_status + label_jumlah di area bawah                     (DONE)
-            - input_panel di atas atau sidebar kiri                         (DONE)
-        """
         # Setup central widget
         central = QWidget()
         self.setCentralWidget(central)
@@ -742,17 +703,6 @@ class MainWindow(QMainWindow):
         pass
 
     def _connect_signals(self) -> None:
-        """
-        Hubungkan sinyal tombol ke slot.                                    (DONE)
-
-        Koneksi yang dibutuhkan:
-            btn_scrape     → mulai_scraping()                               (DONE)
-            btn_stop       → stop_scraping()                                (DONE)
-            btn_export_csv → export_csv()                                   (DONE)
-            btn_export_xl  → export_excel()                                 (DONE)
-        """
-        # TODO Richard: sambungkan sinyal tombol                            (DONE)
-
         # self.btn_scrape.clicked.connect(self.mulai_scraping)
         self.btn_scrape.clicked.connect(self.mulai_scraping)
         # self.btn_stop.clicked.connect(self.stop_scraping)
@@ -790,17 +740,6 @@ class MainWindow(QMainWindow):
         pass
 
     def mulai_scraping(self) -> None:
-        """
-        Dipanggil saat tombol "Mulai Scraping" diklik. (Should Be Working, Yet To Be Tested)
-
-        Alur:
-            1. Panggil self.input_panel.validate() — batalkan jika gagal     (DONE)
-            2. Reset tabel dan self.data_hasil                               (DONE)
-            3. Buat ScraperWorker dengan input dari input_panel.get_inputs() (DONE)
-            4. Sambungkan sinyal worker ke slot GUI                          (DONE)
-            5. Set state scraping                                            (DONE)
-            6. worker.start()                                                (DONE)
-        """
         # TODO Richard: implementasikan mulai scraping                       (DONE)
 
         if not self.input_panel.validate():
@@ -838,17 +777,6 @@ class MainWindow(QMainWindow):
         pass
 
     def tambah_baris(self, artikel: dict) -> None:
-        """
-        Tambahkan 1 artikel valid ke tabel dan self.data_hasil.              (DONE)
-
-        Args:
-            artikel: dict artikel (format kesepakatan tim)
-
-        Urutan kolom tabel: #, Judul, Tanggal, Penulis, Kategori, Isi (preview), URL
-        (double-click baris untuk lihat detail lengkap termasuk gambar)
-        """
-        # TODO Richard:                                                      (DONE)
-
         # self.data_hasil.append(artikel)
         self.data_hasil.append(artikel)
         # row = self.tabel.rowCount()
@@ -901,13 +829,6 @@ class MainWindow(QMainWindow):
         pass
 
     def _lihat_detail(self, row: int, col: int) -> None:
-        """
-        Tampilkan dialog popup isi lengkap artikel saat baris di-double-click.
-
-        Args:
-            row: indeks baris yang diklik
-            col: indeks kolom yang diklik (tidak dipakai)
-        """
         if row >= len(self.data_hasil):
             return
 
@@ -982,7 +903,6 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     def export_csv(self) -> None:
-        """Panggil exporter.export_csv() dengan self.data_hasil."""
         try:
             path = exporter.export_csv(self.data_hasil, "hasil_scraping")
             QMessageBox.information(self, "Sukses", f"Data berhasil diexport ke CSV:\n{path}")
@@ -990,7 +910,6 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Export Gagal", str(e))
 
     def export_excel(self) -> None:
-        """Panggil exporter.export_excel() dengan self.data_hasil."""
         try:
             path = exporter.export_excel(self.data_hasil, "hasil_scraping")
             QMessageBox.information(self, "Sukses", f"Data berhasil diexport ke Excel:\n{path}")

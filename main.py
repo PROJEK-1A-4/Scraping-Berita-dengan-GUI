@@ -8,17 +8,11 @@ import logger
 
 
 def buat_folder_wajib() -> None:
-    """
-    Pastikan folder output/ dan logs/ ada sebelum app jalan.
-    Dibuat otomatis di sini — user tidak perlu buat manual.
-    """
     config.OUTPUT_DIR.mkdir(exist_ok=True)
     config.LOG_FILE.parent.mkdir(exist_ok=True)
 
 
 def main() -> None:
-    """Entry point aplikasi News Scraper."""
-
     # Buat folder yang dibutuhkan
     buat_folder_wajib()
 

@@ -1,24 +1,7 @@
-# scraper.py
-# ╔══════════════════════════════════════════════════════════════╗
-# ║  TUGAS: Darva                                               ║
-# ╚══════════════════════════════════════════════════════════════╝
-#
-# Langkah Darva:
-#   1. Implementasi setup_driver() — headless Chrome + anti-bot headers
-#      WAJIB tambahkan flag Linux: --no-sandbox dan --disable-dev-shm-usage
-#   2. Implementasi _extract_text() — helper coba selector satu per satu
-#   3. Implementasi get_all_links() — kumpulkan link artikel dari halaman
-#   4. Implementasi handle_pagination() — ikuti halaman berikutnya
-#      (4 strategi dari blueprint, jangan hardcode class/id per website!)
-#   5. Implementasi scrape_article() — ekstrak semua field dari 1 artikel
-#   is_artikel_valid() sudah diisi sesuai kesepakatan tim, JANGAN diubah logikanya
-
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-# from selenium.webdriver.support.ui import WebDriverWait      # reserved — untuk explicit wait jika dibutuhkan
-# from selenium.webdriver.support import expected_conditions as EC  # reserved — pasangan WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
@@ -40,28 +23,17 @@ ARTIKEL_KOSONG = {
 
 
 def setup_driver() -> webdriver.Chrome:
-    """
-    Buat dan kembalikan Selenium WebDriver (headless Chrome).
-
-    Konfigurasi yang WAJIB ada:
-        - Headless mode (dari config.HEADLESS)
-        - User-Agent header (dari config.USER_AGENT)
-        - --no-sandbox         (wajib di Linux)
-        - --disable-dev-shm-usage  (cegah crash di Linux)
-        - Page load timeout (dari config.PAGE_LOAD_WAIT)
-
-    Returns:
-        webdriver.Chrome: driver yang siap dipakai
-    """
     options = Options()
     options.page_load_strategy = "eager"  # berhenti tunggu saat DOM siap, abaikan resource lambat
 
     if config.HEADLESS:
-        options.add_argument("--headless")
+        options.add_argument("--headless=new")  # flag baru wajib untuk Chrome v112+
 
     options.add_argument(f"user-agent={config.USER_AGENT}")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-zygote")
 
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
@@ -71,17 +43,6 @@ def setup_driver() -> webdriver.Chrome:
 
 
 def _extract_text(driver: webdriver.Chrome, selectors: list[tuple], default: str = "-") -> str:
-    """
-    Helper: coba beberapa selector CSS/XPath secara berurutan, kembalikan teks pertama yang ketemu.
-
-    Args:
-        driver:    WebDriver aktif
-        selectors: list of (By.xxx, "selector_string"), dicoba dari indeks 0
-        default:   nilai kembalian jika semua selector gagal
-
-    Returns:
-        str: teks elemen pertama yang ditemukan, atau default jika tidak ada
-    """
     from selenium.common.exceptions import NoSuchElementException
 
     for by, value in selectors:
@@ -97,27 +58,6 @@ def _extract_text(driver: webdriver.Chrome, selectors: list[tuple], default: str
 
 
 def _extract_meta(driver: webdriver.Chrome, names: list[str], default: str = "-") -> str:
-    """
-    Helper: baca atribut 'content' dari <meta> tag secara berurutan.
-    Mendukung OpenGraph (property=), Standard meta (name=), dan Schema.org (itemprop=).
-
-    Ini adalah cara paling GENERAL karena merupakan standar internasional:
-      - OpenGraph: dipakai semua website untuk share ke sosmed
-      - Schema.org: standar Google untuk SEO / rich snippets
-      - Keduanya ada di SEMUA website berita modern, tanpa kecuali.
-
-    Contoh:
-        _extract_meta(driver, ["og:title", "twitter:title"])
-        → mencari <meta property='og:title'> lalu <meta name='twitter:title'>
-
-    Args:
-        driver: WebDriver aktif
-        names:  list nama property/name/itemprop meta tag, dicoba dari indeks 0
-        default: nilai kembalian jika semua gagal
-
-    Returns:
-        str: nilai content meta tag pertama yang ditemukan, atau default
-    """
     from selenium.common.exceptions import NoSuchElementException
 
     for name in names:
@@ -151,17 +91,6 @@ def _extract_meta(driver: webdriver.Chrome, names: list[str], default: str = "-"
 
 
 def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
-    """
-    Kumpulkan semua link artikel dari URL (termasuk pagination) sampai limit tercapai.
-
-    Args:
-        driver: WebDriver aktif
-        url:    URL halaman daftar berita
-        limit:  maksimal jumlah link yang dikumpulkan
-
-    Returns:
-        list[str]: daftar URL artikel (full URL, bukan relative)
-    """
     from urllib.parse import urlparse, urljoin
     from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
 
@@ -169,12 +98,8 @@ def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
     seen: set[str] = set()
     parsed_input  = urlparse(url)
     base          = f"{parsed_input.scheme}://{parsed_input.netloc}"
-
-    # Base domain untuk filter same-domain: ambil 2 segmen terakhir
-    # Contoh: "nasional.kompas.com" → "kompas.com"
-    #          "www.cnnindonesia.com" → "cnnindonesia.com"
     netloc_parts = parsed_input.netloc.split(".")
-    base_domain  = ".".join(netloc_parts[-2:])  # e.g. "kompas.com"
+    base_domain  = ".".join(netloc_parts[-2:]) 
 
     # Keyword yang menandakan URL bukan artikel (diambil dari config.py)
     NON_ARTIKEL_KW = config.NON_ARTIKEL_KEYWORDS
@@ -243,18 +168,6 @@ def get_all_links(driver: webdriver.Chrome, url: str, limit: int) -> list[str]:
 
 
 def handle_pagination(driver: webdriver.Chrome) -> bool:
-    """
-    Deteksi dan klik tombol "halaman berikutnya" jika ada.
-
-    Strategi (urutan prioritas — JANGAN hardcode class/id per website!):
-        1. Cari <a rel="next"> atau <link rel="next">
-        2. Cari teks tombol: "Next", "Selanjutnya", "›", "»", "Berikutnya"
-        3. Cari pola URL: ?page=N, ?p=N, /page/N, /halaman/N
-        4. Tidak ketemu → return False (sudah halaman terakhir)
-
-    Returns:
-        bool: True jika berhasil pindah ke halaman berikutnya, False jika tidak ada
-    """
     import re
     from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
     from selenium.common.exceptions import (
@@ -320,24 +233,6 @@ def handle_pagination(driver: webdriver.Chrome) -> bool:
 
 
 def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
-    """
-    Ekstrak semua field dari 1 halaman artikel.
-
-    Args:
-        driver: WebDriver aktif
-        url:    URL artikel yang akan di-scrape
-
-    Returns:
-        dict: artikel dengan semua field (format ARTIKEL_KOSONG sebagai template)
-              Field tidak ditemukan → config.FIELD_KOSONG ("-"), JANGAN crash
-
-    Wajib:
-        - judul, tanggal, isi (field wajib)
-        - url, penulis, kategori, gambar_url (field bonus, boleh "-")
-        - isi dipotong maksimal config.MAX_ISI_CHARS karakter
-        - Gunakan try-except untuk setiap field bonus
-        - Delay config.DEFAULT_DELAY detik setelah scraping
-    """
     from selenium.common.exceptions import TimeoutException
 
     artikel = ARTIKEL_KOSONG.copy()
@@ -346,27 +241,7 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
     try:
         driver.get(url)
     except TimeoutException:
-        pass  # DOM kemungkinan sudah siap, lanjutkan scraping
-
-    # ════════════════════════════════════════════════════════════
-    # STRATEGI EKSTRAKSI — 3 lapisan dari umum ke spesifik:
-    #
-    #   Lapisan 1 (UNIVERSAL) — OpenGraph + Schema.org
-    #     → Standar internasional. SEMUA website berita modern
-    #       mengimplementasikan ini untuk SEO dan social sharing.
-    #       Works on ANY website, not just CNN/Detik/Kompas.
-    #
-    #   Lapisan 2 (SEMI-UMUM) — wildcard [class*='...'] + semantic HTML
-    #     → Menebak nama class berdasarkan pola umum konvensi developer.
-    #     → Tag HTML5 semantik: <article>, <time>, <main>.
-    #
-    #   Lapisan 3 (OPTIMASI) — class spesifik Detik/Kompas/CNN
-    #     → Bukan "hardcode untuk 1 site" tapi shortcut agar lebih cepat
-    #       dan akurat di site yang sudah kita kenal.
-    #     → Jika tidak ada, lapisan 1 & 2 sudah cukup.
-    # ════════════════════════════════════════════════════════════
-
-    # ── Judul ─────────────────────────────────────────────────
+        pass 
     artikel["judul"] = (
         # L1: OpenGraph og:title & Schema.org headline
         _extract_meta(driver, ["og:title", "twitter:title", "headline"])
@@ -382,15 +257,12 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
         ])
     )
 
-    # ── Tanggal ───────────────────────────────────────────────
-    # L1: OpenGraph article:published_time / Schema.org datePublished
     tanggal_meta = _extract_meta(
         driver, ["article:published_time", "datePublished", "publishdate", "createdate", "date", "pubdate"]
     )
     if tanggal_meta != config.FIELD_KOSONG:
         artikel["tanggal"] = tanggal_meta
     else:
-        # Coba ambil atribut datetime dari elemen <time> dulu
         from selenium.common.exceptions import NoSuchElementException
         tanggal_ditemukan = False
         for sel in ["time[datetime]", "time"]:
@@ -420,8 +292,6 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
                 (By.CSS_SELECTOR, "[class*='time']"),           # Wildcard
             ])
 
-    # ── Isi artikel ───────────────────────────────────────────
-    # L1: Schema.org articleBody
     isi = _extract_meta(driver, ["articleBody"])
     if isi == config.FIELD_KOSONG:
         # L2 + L3: wildcard class, semantic HTML, lalu site-specific
@@ -501,18 +371,6 @@ def scrape_article(driver: webdriver.Chrome, url: str) -> dict:
 
 
 def is_artikel_valid(artikel: dict) -> bool:
-    """
-    Validasi artikel: pastikan field wajib tidak kosong dan cukup panjang.
-
-    Threshold diambil dari config.py supaya bisa diubah tanpa edit kode ini.
-    Hanya field WAJIB yang dicek (judul + isi). Field bonus boleh "-".
-
-    Args:
-        artikel: dict artikel hasil scrape_article()
-
-    Returns:
-        bool: True jika artikel valid, False jika harus di-skip
-    """
     # Fungsi ini SUDAH FINAL sesuai kesepakatan tim — jangan ubah logikanya!
     return (
         artikel["judul"] not in (config.FIELD_KOSONG, "") and
