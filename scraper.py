@@ -1,24 +1,7 @@
-# scraper.py
-# ╔══════════════════════════════════════════════════════════════╗
-# ║  TUGAS: Darva                                               ║
-# ╚══════════════════════════════════════════════════════════════╝
-#
-# Langkah Darva:
-#   1. Implementasi setup_driver() — headless Chrome + anti-bot headers
-#      WAJIB tambahkan flag Linux: --no-sandbox dan --disable-dev-shm-usage
-#   2. Implementasi _extract_text() — helper coba selector satu per satu
-#   3. Implementasi get_all_links() — kumpulkan link artikel dari halaman
-#   4. Implementasi handle_pagination() — ikuti halaman berikutnya
-#      (4 strategi dari blueprint, jangan hardcode class/id per website!)
-#   5. Implementasi scrape_article() — ekstrak semua field dari 1 artikel
-#   is_artikel_valid() sudah diisi sesuai kesepakatan tim, JANGAN diubah logikanya
-
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-# from selenium.webdriver.support.ui import WebDriverWait      # reserved — untuk explicit wait jika dibutuhkan
-# from selenium.webdriver.support import expected_conditions as EC  # reserved — pasangan WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
@@ -97,27 +80,6 @@ def _extract_text(driver: webdriver.Chrome, selectors: list[tuple], default: str
 
 
 def _extract_meta(driver: webdriver.Chrome, names: list[str], default: str = "-") -> str:
-    """
-    Helper: baca atribut 'content' dari <meta> tag secara berurutan.
-    Mendukung OpenGraph (property=), Standard meta (name=), dan Schema.org (itemprop=).
-
-    Ini adalah cara paling GENERAL karena merupakan standar internasional:
-      - OpenGraph: dipakai semua website untuk share ke sosmed
-      - Schema.org: standar Google untuk SEO / rich snippets
-      - Keduanya ada di SEMUA website berita modern, tanpa kecuali.
-
-    Contoh:
-        _extract_meta(driver, ["og:title", "twitter:title"])
-        → mencari <meta property='og:title'> lalu <meta name='twitter:title'>
-
-    Args:
-        driver: WebDriver aktif
-        names:  list nama property/name/itemprop meta tag, dicoba dari indeks 0
-        default: nilai kembalian jika semua gagal
-
-    Returns:
-        str: nilai content meta tag pertama yang ditemukan, atau default
-    """
     from selenium.common.exceptions import NoSuchElementException
 
     for name in names:
