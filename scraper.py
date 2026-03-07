@@ -27,11 +27,13 @@ def setup_driver() -> webdriver.Chrome:
     options.page_load_strategy = "eager"  # berhenti tunggu saat DOM siap, abaikan resource lambat
 
     if config.HEADLESS:
-        options.add_argument("--headless")
+        options.add_argument("--headless=new")  # flag baru wajib untuk Chrome v112+
 
     options.add_argument(f"user-agent={config.USER_AGENT}")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-zygote")
 
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
