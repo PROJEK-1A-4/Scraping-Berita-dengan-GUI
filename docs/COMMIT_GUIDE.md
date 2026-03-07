@@ -1,6 +1,5 @@
 # 📝 GIT COMMIT GUIDE — News Scraper Team
 > Commit message yang baik = tim paham apa yang berubah tanpa harus buka kodenya
-> Ini juga berpengaruh ke kesan dosen saat lihat history GitHub kalian!
 
 ---
 
@@ -30,75 +29,62 @@
 ### Darva — scraper.py, worker.py, filter.py, main.py
 ```bash
 # scraper.py
-git commit -m "chore(scraper): setup Selenium headless driver dengan user-agent"
-git commit -m "feat(scraper): tambah fungsi get_all_links() ambil link dari halaman"
-git commit -m "feat(scraper): implementasi scrape_article() ekstrak judul tanggal isi"
-git commit -m "feat(scraper): tambah delay antar request dari config.DEFAULT_DELAY"
-git commit -m "feat(scraper): tambah is_artikel_valid() validasi data tidak kosong"
-git commit -m "fix(scraper): perbaiki _is_artikel_link() yang filter link terlalu agresif"
+git commit -m "chore(scraper): setup Selenium headless driver dengan eager loading"
+git commit -m "feat(scraper): tambah _extract_meta() untuk OpenGraph dan Schema.org"
+git commit -m "feat(scraper): implementasi 3-layer extraction di scrape_article()"
+git commit -m "feat(scraper): tambah get_all_links() dengan same-domain filter dan path_depth"
+git commit -m "feat(scraper): implementasi handle_pagination() 4 strategi"
+git commit -m "feat(scraper): tambah is_artikel_valid() threshold dari config"
 
 # worker.py
-git commit -m "feat(worker): implementasi QThread ScraperWorker dengan 5 sinyal"
-git commit -m "feat(worker): tambah logika skip artikel tidak valid via is_artikel_valid"
-git commit -m "refactor(worker): pindahkan logika filter ke setelah semua artikel selesai"
+git commit -m "feat(worker): implementasi ScraperWorker QThread dengan 5 sinyal"
+git commit -m "feat(worker): tambah filter_by_date di loop scraping"
+git commit -m "feat(worker): tambah graceful stop via _running flag"
 
 # filter.py
-git commit -m "feat(filter): tambah fungsi parse_tanggal() support format Indonesia"
-git commit -m "feat(filter): implementasi filter_by_date() dengan range tanggal"
-git commit -m "fix(filter): perbaiki parsing tanggal format DD/MM/YYYY"
+git commit -m "feat(filter): implementasi parse_tanggal() multi-format ID/EN"
+git commit -m "feat(filter): implementasi filter_by_date() dengan FILTER_INCLUDE_UNKNOWN_DATE"
 
 # main.py
-git commit -m "feat(main): inisialisasi QApplication dan buka MainWindow"
-git commit -m "feat(main): buat folder output/ dan logs/ otomatis saat startup"
-git commit -m "chore(main): tambah .gitignore untuk output, logs, pycache"
-git commit -m "feat(main): sambungkan semua modul di entry point"
+git commit -m "feat(main): inisialisasi QApplication + apply_style + MainWindow"
+git commit -m "feat(main): buat folder output/ dan logs/ otomatis via pathlib"
 ```
 
 ### Kemal — config.py, logger.py, exporter.py
 ```bash
-git commit -m "chore(config): buat config.py dengan semua pengaturan default"
-git commit -m "feat(logger): setup logging ke file dan terminal sekaligus"
-git commit -m "feat(logger): tambah fungsi log_info, log_error, log_warning"
-git commit -m "feat(exporter): implementasi export_csv() dengan encoding utf-8-sig"
-git commit -m "feat(exporter): implementasi export_excel() dengan auto-width kolom"
-git commit -m "fix(exporter): perbaiki urutan kolom sesuai CSV_HEADERS di config"
-git commit -m "test(exporter): tambah data dummy untuk test export di __main__"
+git commit -m "chore(config): buat config.py dengan semua konstanta (pathlib)"
+git commit -m "feat(config): tambah CSV_ENCODING, EXCEL_ENGINE, LOG_FORMAT, LOG_LEVEL"
+git commit -m "feat(logger): setup logging file + console dengan format dari config"
+git commit -m "feat(exporter): implementasi export_csv() dengan rename kolom"
+git commit -m "feat(exporter): implementasi export_excel() dengan auto-width"
 ```
 
-### Richard — gui.py (fungsional)
+### Richard — gui.py (MainWindow)
 ```bash
-git commit -m "chore(gui): setup QMainWindow dengan layout dasar"
-git commit -m "feat(gui): tambah QTableWidget 7 kolom sesuai kesepakatan tim"
-git commit -m "feat(gui): tambah QProgressBar dan label status scraping"
-git commit -m "feat(gui): tambah tombol Mulai Scraping, Stop, Export CSV, Export Excel"
-git commit -m "feat(gui): implementasi fungsi tambah_baris() terima sinyal dari worker"
-git commit -m "feat(gui): sambungkan ScraperWorker ke GUI lewat sinyal"
-git commit -m "fix(gui): perbaiki tombol Export yang tidak disable saat scraping berjalan"
-git commit -m "feat(gui): implementasi dialog export file dengan QFileDialog"
+git commit -m "feat(gui): setup MainWindow dengan tabel 7 kolom dan progress bar"
+git commit -m "feat(gui): tambah bottom status bar (dot, state, delay, headless, logfile)"
+git commit -m "feat(gui): implementasi mulai_scraping() dengan worker signals"
+git commit -m "feat(gui): implementasi dialog detail double-click dengan gambar QPixmap"
+git commit -m "feat(gui): tambah _set_state_idle dan _set_state_scraping"
+git commit -m "feat(gui): implementasi export_csv dan export_excel dari tabel"
 ```
 
-### Kyla — gui.py (input panel)
+### Kyla — gui.py (InputPanel)
 ```bash
-git commit -m "feat(gui): buat class InputPanel dengan QGroupBox"
-git commit -m "feat(gui): tambah QLineEdit input URL dengan placeholder"
-git commit -m "feat(gui): tambah QSpinBox untuk limit artikel range 1-500"
-git commit -m "feat(gui): tambah QCheckBox dan QDateEdit untuk filter tanggal"
-git commit -m "feat(gui): implementasi toggle aktifkan/nonaktifkan date picker"
-git commit -m "feat(gui): tambah validasi URL tidak boleh kosong dan harus https"
-git commit -m "fix(gui): perbaiki validasi tanggal start tidak boleh lebih besar dari end"
+git commit -m "feat(gui): buat InputPanel dengan URL, limit, date picker"
+git commit -m "feat(gui): tambah validasi URL dan date range"
+git commit -m "feat(gui): tambah calendarPopup dan toggle filter tanggal"
+git commit -m "feat(gui): implementasi get_inputs() return dict lengkap"
 ```
 
 ### Aulia — style.py, docs
 ```bash
-git commit -m "chore(style): buat style.py dengan variabel warna dan fungsi apply_style"
-git commit -m "style(style): tambah QSS untuk QPushButton dengan warna per fungsi"
-git commit -m "style(style): tambah QSS untuk QTableWidget dengan alternating rows"
-git commit -m "style(style): tambah QSS untuk QProgressBar dan QGroupBox"
-git commit -m "style(style): polish hover effect dan warna disabled state tombol"
-git commit -m "docs(readme): tulis cara install dan cara jalankan aplikasi"
-git commit -m "docs(readme): tambah tabel fitur dan struktur project"
-git commit -m "docs(laporan): tambah screenshot aplikasi ke folder docs/screenshots"
-git commit -m "docs(laporan): finalisasi PDF laporan 3 halaman"
+git commit -m "feat(style): implementasi dark theme QSS sesuai gui-mockup.html"
+git commit -m "style(style): tambah per-button styling (stop, export) via objectName"
+git commit -m "style(style): tambah progress bar gradient biru→teal"
+git commit -m "style(style): tambah bottom bar dan dialog styling"
+git commit -m "docs(readme): tulis README dengan fitur, install, dan struktur"
+git commit -m "docs(laporan): finalisasi laporan proyek"
 ```
 
 ---
@@ -106,18 +92,15 @@ git commit -m "docs(laporan): finalisasi PDF laporan 3 halaman"
 ## ❌ Contoh Commit yang BURUK
 
 ```bash
-# ❌ Terlalu singkat, tidak informatif
+# ❌ Terlalu singkat
 git commit -m "update"
 git commit -m "fix bug"
-git commit -m "aaa"
-git commit -m "coba"
 git commit -m "done"
-git commit -m "waduh"
 
-# ❌ Terlalu panjang dan campur-campur
-git commit -m "tambah fungsi scraping dan juga perbaiki gui dan update config dan export juga"
+# ❌ Campur-campur
+git commit -m "tambah scraping dan perbaiki gui dan update config"
 
-# ❌ Tidak jelas perubahan apa
+# ❌ Tidak jelas
 git commit -m "perubahan kode"
 git commit -m "revisi"
 ```
@@ -127,73 +110,57 @@ git commit -m "revisi"
 ## 🔄 Alur Kerja Git Harian
 
 ```bash
-# 1. Pastikan kamu di branch sendiri
+# 1. Pastikan di branch sendiri
 git checkout dev/namakamu
 
-# 2. Sebelum mulai coding, sync dulu dari main
+# 2. Sync dari main
 git pull origin main
 
-# 3. Coding... coding...
+# 3. Coding...
 
-# 4. Cek apa yang berubah
-git status
-git diff
+# 4. Cek perubahan
+git status && git diff
 
-# 5. Stage perubahan
-git add nama_file.py        # kalau mau pilih file tertentu
-# atau
-git add .                   # semua perubahan
-
-# 6. Commit dengan pesan yang jelas
+# 5. Stage & commit
+git add nama_file.py
 git commit -m "feat(gui): tambah validasi input URL"
 
-# 7. Push ke branch kamu
+# 6. Push
 git push origin dev/namakamu
 
-# 8. Kalau sudah siap merge → buat Pull Request di GitHub
-#    Assign ke Darva sebagai reviewer
+# 7. Buat Pull Request → assign ke Darva
 ```
 
 ---
 
-## 💡 Tips Commit yang Bagus
+## 💡 Tips Commit
 
 ```
-✅ 1 commit = 1 perubahan yang jelas (bukan campur-campur)
-✅ Commit sesering mungkin — lebih baik 10 commit kecil dari 1 commit besar
-✅ Commit setiap kali 1 fungsi/fitur selesai dan berjalan
-✅ Jangan commit kode yang masih error / belum jalan
+✅ 1 commit = 1 perubahan yang jelas
+✅ Commit sesering mungkin — 10 commit kecil > 1 commit besar
+✅ Jangan commit kode yang masih error
 
-❌ Jangan commit file output/ atau logs/ (sudah ada di .gitignore)
-❌ Jangan commit file .pyc atau __pycache__
+❌ Jangan commit file output/ atau logs/
+❌ Jangan commit __pycache__
 ```
 
 ---
 
-## 📄 .gitignore yang Harus Ada di Root Repo
+## 📄 .gitignore
 
 ```gitignore
-# Python
 __pycache__/
 *.py[cod]
 *.pyo
 .env
-
-# Output & Logs
 output/
 logs/
-
-# IDE
 .vscode/
 .idea/
 *.code-workspace
-
-# OS
 .DS_Store
 Thumbs.db
 ```
-
-> Darva: buat file `.gitignore` ini di root repo di hari pertama — sebelum yang lain push!
 
 ---
 
@@ -206,7 +173,3 @@ Thumbs.db
 | Richard | 6-8 | gui fungsional |
 | Kyla | 5-6 | gui input panel |
 | Aulia | 5-6 | style + docs + screenshot |
-
----
-
-*Commit history yang rapi = nilai GitHub yang bagus = tim profesional 💪*

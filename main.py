@@ -1,14 +1,4 @@
-# main.py
-# ╔══════════════════════════════════════════════════════════════╗
-# ║  TUGAS: Darva                                               ║
-# ╚══════════════════════════════════════════════════════════════╝
-#
-# Langkah Darva:
-#   1. Implementasi bagian utama (sudah diisi sebagian — lihat TODO di bawah)
-#   2. Pastikan app berjalan dengan: python main.py (Windows) / python3 main.py (Linux/Mac)
-
 import sys
-from pathlib import Path
 
 from PyQt5.QtWidgets import QApplication
 
@@ -23,7 +13,7 @@ def buat_folder_wajib() -> None:
     Dibuat otomatis di sini — user tidak perlu buat manual.
     """
     config.OUTPUT_DIR.mkdir(exist_ok=True)
-    (Path("logs")).mkdir(exist_ok=True)
+    config.LOG_FILE.parent.mkdir(exist_ok=True)
 
 
 def main() -> None:
@@ -41,18 +31,16 @@ def main() -> None:
     # Inisialisasi Qt application
     app = QApplication(sys.argv)
 
-    # TODO Darva: terapkan stylesheet sebelum window dibuat
-    # style.apply_style(app)
+    # Terapkan stylesheet sebelum window dibuat
+    style.apply_style(app)
 
-    # TODO Darva: buat dan tampilkan MainWindow
-    # from gui import MainWindow
-    # window = MainWindow()
-    # window.show()
+    # Buat dan tampilkan MainWindow
+    from gui import MainWindow
+    window = MainWindow()
+    window.show()
 
-    # TODO Darva: jalankan event loop dan exit bersih
-    # sys.exit(app.exec_())
-
-    pass
+    # Jalankan event loop dan exit bersih
+    sys.exit(app.exec_())
 
 
 if __name__ == "__main__":
