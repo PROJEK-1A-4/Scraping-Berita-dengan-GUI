@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import (
     QProgressBar, QSpinBox, QCheckBox, QDateEdit, QMessageBox,
     QHeaderView, QSizePolicy, QDialog, QTextBrowser,
     QMenuBar, QMenu, QAction, QFormLayout, QDoubleSpinBox, QGroupBox,
-    QGridLayout, QFrame
+    QGridLayout, QFrame, QScrollArea
 )
 from PyQt5.QtCore import Qt, QDate, QLocale
 from PyQt5.QtGui import QFont, QPixmap, QIcon
@@ -565,7 +565,8 @@ class MainWindow(QMainWindow):
         """Buka dialog Tim Pengembang."""
         dialog = QDialog(self)
         dialog.setWindowTitle("Tim Pengembang")
-        dialog.setFixedSize(config.DIALOG_W + 40, config.DIALOG_H + 100)  # Lebih besar untuk daftar tim
+        dialog.resize(config.DIALOG_W + 180, config.DIALOG_H + 220)
+        dialog.setMinimumSize(config.DIALOG_W + 120, config.DIALOG_H + 160)
 
         layout = QVBoxLayout(dialog)
         layout.setSpacing(12)
@@ -585,16 +586,27 @@ class MainWindow(QMainWindow):
 
         # Daftar anggota tim
         tim = [
-            ("Darva",   "Lead Developer + Reviewer",         "#4F8EF7"),
-            ("Kemal",   "Data & Reliability Developer",      "#00D4AA"),
-            ("Richard", "GUI Developer (Fungsional)",         "#F7C948"),
-            ("Kyla",    "GUI Developer (Input & Filter)",     "#F75A5A"),
-            ("Aulia",   "UI Polish + Dokumentasi",            "#C084FC"),
+            ("Darva Aryasatya Putra Hermawan - 251524006",   "Lead Developer + Reviewer",         "#4F8EF7"),
+            ("Kemal Melvin Ibrahim - 251524017",   "Data & Reliability Developer",      "#00D4AA"),
+            ("Richard Fadhilah Irwandi Putra - 251524028", "GUI Developer (Fungsional)",         "#F7C948"),
+            ("Kyla Khansa - 251524018",    "GUI Developer (Input & Filter)",     "#F75A5A"),
+            ("Aulia Rahmi Taufik - 251524003",   "UI Polish + Dokumentasi",            "#C084FC"),
+            ("Muhammad Rizqi Sholahuddin - 199105302019031019", "Manager Proyek", "#6B7699"),
         ]
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        list_container = QWidget()
+        list_layout = QVBoxLayout(list_container)
+        list_layout.setContentsMargins(0, 0, 0, 0)
+        list_layout.setSpacing(8)
 
         for nama, peran, warna in tim:
             card = QFrame()
             card.setObjectName("tim_card")
+            card.setMinimumHeight(72)
             card.setStyleSheet(
                 f"QFrame#tim_card {{"
                 f"  background-color: #1E2333;"
@@ -607,20 +619,28 @@ class MainWindow(QMainWindow):
             card_layout = QHBoxLayout(card)
             card_layout.setContentsMargins(12, 6, 12, 6)
 
+            # Gunakan layout vertikal agar nama/NIM panjang tidak terpotong.
+            text_layout = QVBoxLayout()
+            text_layout.setSpacing(2)
+
             lbl_nama = QLabel(nama)
             lbl_nama.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {warna}; background: transparent;")
-            lbl_nama.setFixedWidth(90)
+            lbl_nama.setWordWrap(True)
 
             lbl_peran = QLabel(peran)
             lbl_peran.setStyleSheet("font-size: 12px; color: #E8EAF0; background: transparent;")
+            lbl_peran.setWordWrap(True)
 
-            card_layout.addWidget(lbl_nama)
-            card_layout.addWidget(lbl_peran)
-            card_layout.addStretch()
+            text_layout.addWidget(lbl_nama)
+            text_layout.addWidget(lbl_peran)
 
-            layout.addWidget(card)
+            card_layout.addLayout(text_layout, 1)
 
-        layout.addStretch()
+            list_layout.addWidget(card)
+
+        list_layout.addStretch()
+        scroll.setWidget(list_container)
+        layout.addWidget(scroll, 1)
 
         btn_tutup = QPushButton("Tutup")
         btn_tutup.setFixedWidth(120)

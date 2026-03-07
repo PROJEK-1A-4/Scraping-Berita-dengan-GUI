@@ -107,7 +107,8 @@ QLineEdit {
     font-family: "Courier New", monospace;
 }
 QLineEdit:focus {
-    border: 1px solid #4F8EF7;
+    border: 1px solid #6BA3F9;
+    background-color: #222941;
     color: #E8EAF0;
 }
 
@@ -123,7 +124,8 @@ QSpinBox, QDateEdit {
     min-width: 110px;
 }
 QSpinBox:focus, QDateEdit:focus {
-    border: 1px solid #4F8EF7;
+    border: 1px solid #6BA3F9;
+    background-color: #222941;
 }
 QSpinBox::up-button, QSpinBox::down-button {
     background-color: #2A3147;
@@ -183,6 +185,9 @@ QCheckBox::indicator {
     border: 1px solid #2A3147;
     background-color: #1E2333;
 }
+QCheckBox::indicator:hover {
+    border: 1px solid #4F8EF7;
+}
 QCheckBox::indicator:checked {
     background-color: #4F8EF7;
     border-color: #4F8EF7;
@@ -208,7 +213,7 @@ QPushButton:pressed {
 }
 QPushButton:disabled {
     background-color: #1E2333;
-    color: #3A4566;
+    color: #556080;
     border: 1px solid #2A3147;
 }
 
@@ -223,7 +228,7 @@ QPushButton#btn_stop:hover {
 }
 QPushButton#btn_stop:disabled {
     background-color: #1E2333;
-    color: #3A4566;
+    color: #556080;
     border: 1px solid #2A3147;
 }
 
@@ -238,7 +243,7 @@ QPushButton#btn_export_csv:hover, QPushButton#btn_export_xl:hover {
 }
 QPushButton#btn_export_csv:disabled, QPushButton#btn_export_xl:disabled {
     background-color: #1E2333;
-    color: #3A4566;
+    color: #556080;
     border: 1px solid #2A3147;
 }
 
@@ -295,6 +300,19 @@ QTableWidget QScrollBar::handle:vertical {
 QTableWidget QScrollBar::handle:vertical:hover {
     background: #4F8EF7;
 }
+QTableWidget QScrollBar:horizontal {
+    background: #181C27;
+    height: 8px;
+    border-radius: 4px;
+}
+QTableWidget QScrollBar::handle:horizontal {
+    background: #2A3147;
+    border-radius: 4px;
+    min-width: 20px;
+}
+QTableWidget QScrollBar::handle:horizontal:hover {
+    background: #4F8EF7;
+}
 
 /* ═══ QProgressBar ═════════════════════════════════════════════════════ */
 QProgressBar {
@@ -348,6 +366,38 @@ QTextBrowser {
     color: #E8EAF0;
     font-size: 13px;
     padding: 8px;
+}
+
+/* ═══ QToolTip (polish kecil, non-fungsional) ═════════════════════════ */
+QToolTip {
+    background-color: #1E2333;
+    color: #E8EAF0;
+    border: 1px solid #2A3147;
+    padding: 6px 8px;
+    font-size: 11px;
+}
+
+/* ═══ QScrollArea/QScrollBar (polish kecil, non-fungsional) ═══════════ */
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+QScrollBar:vertical {
+    background: #181C27;
+    width: 8px;
+    border-radius: 4px;
+    margin: 2px;
+}
+QScrollBar::handle:vertical {
+    background: #2A3147;
+    border-radius: 4px;
+    min-height: 24px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #4F8EF7;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
 }
 """
 
