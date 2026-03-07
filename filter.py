@@ -1,15 +1,3 @@
-# filter.py
-# ╔══════════════════════════════════════════════════════════════╗
-# ║  TUGAS: Darva                                               ║
-# ╚══════════════════════════════════════════════════════════════╝
-#
-# Langkah Darva:
-#   1. Implementasi parse_tanggal() — support format tanggal Indonesia:
-#      "04 Mar 2025", "4 Maret 2025", "2025-03-04", "04/03/2025"
-#      Kembalikan datetime.date jika berhasil, None jika tidak dikenali
-#   2. Implementasi filter_by_date() — filter list artikel berdasarkan rentang
-#      Artikel tanggal tidak dikenali → ikuti config.FILTER_INCLUDE_UNKNOWN_DATE
-
 import datetime
 import dateparser
 import config
