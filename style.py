@@ -5,16 +5,16 @@
 #
 # Langkah Aulia:
 #   1. Isi MAIN_STYLESHEET dengan QSS (Qt Style Sheet) untuk styling seluruh app
-#   2. apply_style() sudah siap — kamu hanya perlu mengisi MAIN_STYLESHEET
+#   2. apply_style() mengisi MAIN_STYLESHEET
 #
 # Elemen yang perlu di-styling (lihat gui.py untuk nama widget):
-#   - QMainWindow, QWidget  → background color
-#   - QTableWidget          → header, row, alternating colors
-#   - QPushButton           → warna tombol scraping, stop, export
-#   - QProgressBar          → warna bar progress
-#   - QLineEdit             → URL input field
-#   - QLabel                → font, warna teks status
-#   - QSpinBox, QDateEdit   → input number dan tanggal
+#   - QMainWindow, QWidget  → mengatur background color
+#   - QTableWidget          → mengatur header, row, alternating colors
+#   - QPushButton           → mengaturwarna tombol scraping, stop, export
+#   - QProgressBar          → mengatur warna bar progress
+#   - QLineEdit             → mengatur URL input field
+#   - QLabel                → mengatur font, warna teks status
+#   - QSpinBox, QDateEdit   → mengatur input number dan tanggal
 #
 # Referensi QSS: https://doc.qt.io/qt-5/stylesheet-reference.html
 # Contoh selector: QPushButton { background-color: #4CAF50; color: white; }
@@ -77,7 +77,7 @@ QMenu::separator {
     margin: 4px 8px;
 }
 QMenu::item:disabled {
-    color: #3A4566;
+    color: #556080;
 }
 
 /* ═══ QLabel ══════════════════════════════════════════════════════════ */
