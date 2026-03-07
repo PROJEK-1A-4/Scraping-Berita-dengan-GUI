@@ -185,6 +185,9 @@ QCheckBox::indicator {
     border: 1px solid #2A3147;
     background-color: #1E2333;
 }
+QCheckBox::indicator:hover {
+    border: 1px solid #4F8EF7;
+}
 QCheckBox::indicator:checked {
     background-color: #4F8EF7;
     border-color: #4F8EF7;
